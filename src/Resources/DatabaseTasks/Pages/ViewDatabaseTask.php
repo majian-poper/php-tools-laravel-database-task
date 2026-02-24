@@ -5,6 +5,7 @@ namespace PHPTools\LaravelDatabaseTask\Resources\DatabaseTasks\Pages;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Contracts\Support\Htmlable;
 use PHPTools\LaravelDatabaseTask\DatabaseTaskPlugin;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 
@@ -21,11 +22,12 @@ class ViewDatabaseTask extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            $this->makeRequestAction(),
+            $this->getRequestAction(),
+            $this->getPreviewAction(),
         ];
     }
 
-    protected function makeRequestAction(): Actions\Action
+    protected function getRequestAction(): Actions\Action
     {
         return Actions\Action::make('request')
             ->label(__('database-task::model.database_task.actions.request.label'))
@@ -47,5 +49,14 @@ class ViewDatabaseTask extends ViewRecord
                         ->send();
                 }
             );
+    }
+
+    protected function getPreviewAction(): Actions\Action
+    {
+        return Actions\Action::make('preview')
+            ->label(__('database-task::model.database_task.actions.preview.label'))
+            ->visible(static fn(DatabaseTask $record): bool => $record->previewable())
+            ->modalContent(static fn(DatabaseTask $record): Htmlable => $record->preview())
+            ->modalFooterActions([]);
     }
 }

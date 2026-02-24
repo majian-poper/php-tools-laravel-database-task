@@ -2,6 +2,7 @@
 
 namespace PHPTools\LaravelDatabaseTask\Models;
 
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -66,9 +67,15 @@ class DatabaseTask extends Model
         return $this->toTask()->run(...$this->inputs->map->toInput()->all());
     }
 
-    public function markAs(Enums\TaskStatus $status): static
+    public function previewable(): bool
     {
-        return $this->setAttribute('status', $status);
+        return \in_array($this->status, [Enums\TaskStatus::UNAPPLIED, Enums\TaskStatus::PENDING])
+            || $this->outputs->isEmpty();
+    }
+
+    public function preview(): Htmlable
+    {
+        return $this->toTask()->preview(...$this->inputs->map->toInput()->all());
     }
 
     public function requestable(): bool
@@ -85,6 +92,11 @@ class DatabaseTask extends Model
         }
 
         return $result;
+    }
+
+    public function markAs(Enums\TaskStatus $status): static
+    {
+        return $this->setAttribute('status', $status);
     }
 
     public function shouldBeScheduled(): bool
