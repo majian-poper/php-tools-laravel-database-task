@@ -81,7 +81,7 @@ class DatabaseTask extends Model
         $result = $this->markAs(Enums\TaskStatus::PENDING)->save();
 
         if ($result) {
-            Events\DatabaseTaskRequested::dispatch($this, Auth::user());
+            Events\TaskRequested::dispatch($this, Auth::user());
         }
 
         return $result;

@@ -6,7 +6,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Events\Dispatchable;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 
-class DatabaseTaskRequested
+class TaskRequested
 {
     use Dispatchable;
 

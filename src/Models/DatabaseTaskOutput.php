@@ -6,7 +6,7 @@ use Filament\Actions\Action;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Auth;
-use PHPTools\LaravelDatabaseTask\Events\DatabaseTaskOutputDownloading;
+use PHPTools\LaravelDatabaseTask\Events;
 use Spatie\MediaLibrary\HasMedia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -54,7 +54,7 @@ class DatabaseTaskOutput extends Model implements HasMedia
         return Action::make('download')
             ->label(__('database-task::model.database_task_output.actions.download'))
             ->visible(fn(): bool => $this->is_file && $this->isValid() && isset($this->file))
-            ->before(fn() => DatabaseTaskOutputDownloading::dispatch($this, Auth::user()))
+            ->before(fn() => Events\TaskOutputDownloading::dispatch($this, Auth::user()))
             ->action(fn(): StreamedResponse => $this->file->toResponse(request()));
     }
 

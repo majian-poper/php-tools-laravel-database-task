@@ -7,7 +7,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskOutput;
 
-class DatabaseTaskOutputDownloading
+class TaskOutputDownloading
 {
     use Dispatchable, SerializesModels;
 
