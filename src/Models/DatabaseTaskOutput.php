@@ -39,14 +39,14 @@ class DatabaseTaskOutput extends Model implements HasMedia
         'expires_at',
     ];
 
-    public function isValid(): bool
-    {
-        return $this->expires_at?->isFuture() ?? true;
-    }
-
     public function isExpired(): bool
     {
-        return ! $this->isValid();
+        return $this->expires_at?->isPast() ?? false;
+    }
+
+    public function isValid(): bool
+    {
+        return ! $this->isExpired();
     }
 
     public function toDownloadAction(): Action

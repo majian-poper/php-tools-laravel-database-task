@@ -87,15 +87,10 @@ class DatabaseTask extends Model
         return $result;
     }
 
-    // public function isApproved(): bool
-    // {
-    //     return $this->status === Enums\TaskStatus::APPROVED;
-    // }
-
-    // public function shouldBeScheduled(): bool
-    // {
-    //     return $this->schedules_at?->isFuture() ?? false;
-    // }
+    public function shouldBeScheduled(): bool
+    {
+        return $this->schedules_at?->isFuture() ?? false;
+    }
 
     // --- Relationships ---
 
