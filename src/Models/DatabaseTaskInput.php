@@ -50,7 +50,7 @@ class DatabaseTaskInput extends Model implements HasMedia
             $this->inputInstance
                 ->when(
                     $this->is_file,
-                    fn($input) => $input->asFile(),
+                    fn($input) => $input->asFile()->value($this->file->getFilepath()),
                     fn($input) => $input->value($this->input_value)
                 )
                 ->excluded($this->is_excluded);

@@ -16,9 +16,9 @@ enum TaskRisk: string
     public function getFilamentColor(): string
     {
         return match ($this) {
-            self::LOW => 'success',
-            self::MEDIUM => 'warning',
-            self::HIGH => 'danger',
+            static::LOW => 'success',
+            static::MEDIUM => 'warning',
+            static::HIGH => 'danger',
         };
     }
 }

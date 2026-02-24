@@ -6,7 +6,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class DatabaseTaskFile extends Media
 {
-    public function getFileObject(): \SplFileObject
+    public function getFileObject(): string
     {
         try {
             $bytes = \file_put_contents($tmp = \tempnam(\sys_get_temp_dir(), config('app.name') . '-'), $this->stream());
@@ -18,6 +18,6 @@ class DatabaseTaskFile extends Media
             throw new \RuntimeException($e->getMessage());
         }
 
-        return new \SplFileObject($bytes, 'r');
+        return $tmp;
     }
 }

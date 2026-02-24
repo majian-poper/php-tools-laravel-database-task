@@ -24,10 +24,10 @@ enum TaskStatus: string
     public function getFilamentColor(): string
     {
         return match ($this) {
-            self::UNAPPLIED => 'gray',
-            self::PENDING, self::PROCESSING => 'warning',
-            self::APPROVED, self::PROCESSED => 'success',
-            self::REJECTED, self::FAILED => 'danger',
+            static::UNAPPLIED => 'gray',
+            static::PENDING, static::PROCESSING => 'warning',
+            static::APPROVED, static::PROCESSED => 'success',
+            static::REJECTED, static::FAILED => 'danger',
         };
     }
 }
