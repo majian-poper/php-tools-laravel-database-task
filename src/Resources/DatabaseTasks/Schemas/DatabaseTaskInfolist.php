@@ -5,6 +5,7 @@ namespace PHPTools\LaravelDatabaseTask\Resources\DatabaseTasks\Schemas;
 use Filament\Infolists;
 use Filament\Schemas;
 use Illuminate\Support\Arr;
+use PHPTools\LaravelDatabaseTask\DatabaseTaskPlugin;
 use PHPTools\LaravelDatabaseTask\Enums;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskInput;
@@ -26,12 +27,12 @@ class DatabaseTaskInfolist
 
     protected static function schema(): array
     {
-        $schema = [
-            Schemas\Components\Section::make()
-                ->schema(static::taskSectionSchema()),
-            Schemas\Components\Section::make()
-                ->label(__('database-task::model.database_task.description'))
-                ->schema([Infolists\Components\TextEntry::make('description')->hiddenLabel()->html()]),
+        return [
+            static::section()
+                ->schema(static::descriptionSectionSchema()),
+            static::section()
+                ->schema(static::taskSectionSchema())
+                ->columns(2),
             Infolists\Components\RepeatableEntry::make('inputs')
                 ->label(__('database-task::model.database_task.inputs'))
                 ->schema(static::inputSectionSchema())
@@ -41,16 +42,36 @@ class DatabaseTaskInfolist
                 ->schema(static::outputSectionSchema())
                 ->visible(static fn(DatabaseTask $record): bool => $record->outputs->isNotEmpty()),
         ];
-
-        return $schema;
     }
 
-    protected static function taskSectionSchema(): array
+
+    /**
+     * @return Infolists\Components\Section | Schemas\Components\Section
+     */
+    protected static function section()
+    {
+        if (DatabaseTaskPlugin::getFilamentVersion() === 3) {
+            return Infolists\Components\Section::make();
+        }
+
+        return Schemas\Components\Section::make();
+    }
+
+    protected static function descriptionSectionSchema(): array
     {
         return [
             Infolists\Components\TextEntry::make('title')
                 ->label(__('database-task::model.database_task.title'))
                 ->inlineLabel(),
+            Infolists\Components\TextEntry::make('description')
+                ->label(__('database-task::model.database_task.description'))
+                ->html()
+        ];
+    }
+
+    protected static function taskSectionSchema(): array
+    {
+        return [
             Infolists\Components\TextEntry::make('task_class')
                 ->label(__('database-task::model.database_task.task_class'))
                 ->inlineLabel()
