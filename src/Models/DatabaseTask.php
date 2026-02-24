@@ -49,6 +49,7 @@ class DatabaseTask extends Model
         'task_class',
         'title',
         'description',
+        'risk',
         'status',
         'schedules_at',
     ];
