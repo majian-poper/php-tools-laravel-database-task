@@ -125,15 +125,19 @@ class DatabaseTaskInfolist
     protected static function outputSectionSchema(): array
     {
         return [
+            Infolists\Components\TextEntry::make('output_value')
+                ->label(__('database-task::model.database_task_output.output_value'))
+                ->color('danger')
+                ->visible(static fn(DatabaseTaskOutput $record): bool => ! $record->is_file && filled($record->output_value)),
             Infolists\Components\TextEntry::make('expires_at')
                 ->label(__('database-task::model.database_task_output.expires_at'))
                 ->inlineLabel()
                 ->dateTime('Y-m-d H:i:s')
                 ->color(static fn(DatabaseTaskOutput $record): string => $record->isValid() ? 'success' : 'danger')
-                ->visible(static fn(DatabaseTaskOutput $record): bool => filled($record->expires_at)),
+                ->visible(static fn(DatabaseTaskOutput $record): bool => $record->is_file && filled($record->expires_at)),
             Schemas\Components\Group::make()
                 ->schema(static fn(DatabaseTaskOutput $record): array => [$record->toDownloadAction()])
-                ->visible(static fn(DatabaseTaskOutput $record): bool => $record->isValid()),
+                ->visible(static fn(DatabaseTaskOutput $record): bool => $record->is_file && $record->isValid()),
         ];
     }
 }
