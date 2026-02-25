@@ -131,7 +131,7 @@ class DatabaseTaskPlugin implements Plugin
 
     public function getFilters(): array
     {
-        return $this->filters = Arr::from($this->evaluate($this->filters));
+        return (array) $this->evaluate($this->filters);
     }
 
     public function modifyQueryUsing(?\Closure $callback): static

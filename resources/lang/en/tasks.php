@@ -34,6 +34,11 @@ return [
             'help_text_multiple' => 'Please select ":label" from the options, multiple selections allowed.',
         ],
 
+        'datetime' => [
+            'placeholder' => '',
+            'help_text' => 'Please enter a date and time',
+        ],
+
         'boolean' => [
             'placeholder' => '',
             'help_text' => 'Checking this will be treated as YES, unchecking as NO.',

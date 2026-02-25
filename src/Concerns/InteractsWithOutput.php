@@ -35,6 +35,6 @@ trait InteractsWithOutput
 
     public function getExpiresAt(): ?\DateTimeInterface
     {
-        return $this->expiresAt = $this->evaluate($this->expiresAt);
+        return $this->evaluate($this->expiresAt);
     }
 }

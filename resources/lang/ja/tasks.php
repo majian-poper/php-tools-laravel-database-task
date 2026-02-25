@@ -34,6 +34,11 @@ return [
             'help_text_multiple' => 'オプションから「:label」を選択してください、複数選択可能です。',
         ],
 
+        'datetime' => [
+            'placeholder' => '',
+            'help_text' => '日付と時間を入力してください',
+        ],
+
         'boolean' => [
             'placeholder' => '',
             'help_text' => 'チェックを入れると「はい」、外すと「いいえ」として扱われます。',

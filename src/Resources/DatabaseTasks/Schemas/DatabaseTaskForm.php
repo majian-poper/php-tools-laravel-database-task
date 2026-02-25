@@ -93,6 +93,7 @@ class DatabaseTaskForm
             InputType::QUERY => Forms\Components\CodeEditor::make('input_value')->language(Language::Sql), // TODO: v3 compatibility?
             InputType::NUMBER => static::makeNumberField($input),
             InputType::SELECT => static::makeSelectField($input),
+            InputType::DATETIME => static::makeDatetimeField($input),
             InputType::BOOLEAN => Forms\Components\Checkbox::make('input_value'),
             default => throw new \RuntimeException('Unsupported input field type: ' . $input->getType()->value),
         };
@@ -137,6 +138,17 @@ class DatabaseTaskForm
             ->options($input->getOptions())
             ->searchable(false)
             ->multiple($input->isMultiple());
+    }
+
+    /**
+     * @param InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput $input
+     */
+    protected static function makeDatetimeField(InputInterface $input): Forms\Components\Field
+    {
+        return Forms\Components\DateTimePicker::make('input_value')
+            ->time($input->hasTime())
+            ->native(false)
+            ->displayFormat($input->hasTime() ? 'Y-m-d H:i:s' : 'Y-m-d');
     }
 
     /**

@@ -16,6 +16,6 @@ class TextOutput implements OutputInterface
 
     public function getValue(): string
     {
-        return $this->value = (string) $this->evaluate($this->value);
+        return (string) $this->evaluate($this->value);
     }
 }

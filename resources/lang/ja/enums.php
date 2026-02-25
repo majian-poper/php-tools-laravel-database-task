@@ -22,6 +22,7 @@ return [
         'QUERY' => 'クエリ',
         'NUMBER' => '数字',
         'SELECT' => '選択',
+        'DATETIME' => '日時',
         'BOOLEAN' => 'チェック',
         'FILE' => 'ファイル',
     ],

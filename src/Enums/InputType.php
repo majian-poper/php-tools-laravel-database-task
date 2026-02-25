@@ -13,6 +13,8 @@ enum InputType: string
 
     case SELECT = 'select';
 
+    case DATETIME = 'datetime';
+
     case BOOLEAN = 'boolean';
 
     case FILE = 'file';
@@ -21,7 +23,7 @@ enum InputType: string
     {
         return match ($this) {
             static::NUMBER, static::SELECT => true,
-            static::QUERY, static::BOOLEAN, static::FILE => false,
+            default => false,
         };
     }
 
@@ -30,7 +32,7 @@ enum InputType: string
     {
         return match ($this) {
             static::NUMBER, static::FILE => true,
-            static::QUERY, static::SELECT, static::BOOLEAN => false,
+            default => false,
         };
     }
 
@@ -38,7 +40,7 @@ enum InputType: string
     {
         return match ($this) {
             static::NUMBER, static::SELECT => true,
-            static::QUERY, static::BOOLEAN, static::FILE => false,
+            default => false,
         };
     }
 

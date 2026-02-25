@@ -21,6 +21,8 @@ trait InteractsWithInput
 
     protected array | \Closure $options = [];
 
+    protected bool | \Closure $hasTime = false;
+
     protected bool | \Closure $canBeMultiple = false;
 
     protected bool | \Closure $canBeFile = false;
@@ -47,7 +49,7 @@ trait InteractsWithInput
 
     public function getValue(): mixed
     {
-        return $this->value = $this->evaluate($this->value);
+        return $this->evaluate($this->value);
     }
 
     public function value(mixed $value): self
@@ -79,6 +81,14 @@ trait InteractsWithInput
         return $this;
     }
 
+    public function asDatetime(bool | \Closure $hasTime = false): self
+    {
+        $this->type = InputType::DATETIME;
+        $this->hasTime = $hasTime;
+
+        return $this;
+    }
+
     public function asBoolean(): self
     {
         $this->type = InputType::BOOLEAN;
@@ -102,7 +112,7 @@ trait InteractsWithInput
 
     public function isExcluded(): bool
     {
-        return $this->isExcluded = $this->type->canBeExcluded() && (bool) $this->evaluate($this->isExcluded);
+        return $this->type->canBeExcluded() && (bool) $this->evaluate($this->isExcluded);
     }
 
     public function isFile(): bool
@@ -122,6 +132,11 @@ trait InteractsWithInput
     public function getOptions(): array
     {
         return (array) $this->evaluate($this->options);
+    }
+
+    public function hasTime(): bool
+    {
+        return (bool) $this->evaluate($this->hasTime);
     }
 
     public function multiple(bool | \Closure $condition = true): self
@@ -199,7 +214,7 @@ trait InteractsWithInput
 
     public function requiredWithoutAllFields(): array
     {
-        return $this->requiredWithoutAll = Arr::from($this->evaluate($this->requiredWithoutAll));
+        return (array) $this->evaluate($this->requiredWithoutAll);
     }
 
     // --- Localization Methods ---
