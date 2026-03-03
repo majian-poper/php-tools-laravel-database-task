@@ -148,7 +148,7 @@ class DatabaseTaskForm
         return Forms\Components\DateTimePicker::make('input_value')
             ->time($input->hasTime())
             ->native(false)
-            ->displayFormat($input->hasTime() ? 'Y-m-d H:i:s' : 'Y-m-d');
+            ->displayFormat($input->getDisplayFormat());
     }
 
     /**

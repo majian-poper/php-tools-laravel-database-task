@@ -44,7 +44,6 @@ class DatabaseTaskInfolist
         ];
     }
 
-
     /**
      * @return Infolists\Components\Section | Schemas\Components\Section
      */
@@ -114,6 +113,7 @@ class DatabaseTaskInfolist
                         return match ($input->getType()) {
                             Enums\InputType::BOOLEAN => __('database-task::tasks.input_types.boolean.' . ($input->getValue() ? 'true' : 'false')),
                             Enums\InputType::SELECT => \implode(', ', Arr::only($input->getOptions(), $input->getValue())),
+                            Enums\InputType::DATETIME => $input->getValue()?->format($input->getDisplayFormat()),
                             Enums\InputType::FILE => $record->file?->file_name,
                             default => $state,
                         };
