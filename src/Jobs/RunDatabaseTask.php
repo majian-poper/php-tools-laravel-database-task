@@ -13,13 +13,15 @@ class RunDatabaseTask implements ShouldQueue
 {
     use Queueable;
 
+    public $timeout = 300; // 5 minutes
+
     public function __construct(public DatabaseTask $task) {}
 
     public function displayName(): string
     {
         return \sprintf(
             '%s #%d (%s)',
-            \get_class($this),
+            class_basename($this),
             $this->task->getKey(),
             $this->task->task_class,
         );
