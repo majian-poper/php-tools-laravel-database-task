@@ -9,7 +9,6 @@ use Filament\Panel;
 use Filament\Support\Concerns\EvaluatesClosures;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Arr;
 use PHPTools\LaravelDatabaseTask\Resources\DatabaseTaskClasses\DatabaseTaskClassResource;
 
 class DatabaseTaskPlugin implements Plugin

@@ -3,7 +3,6 @@
 namespace PHPTools\LaravelDatabaseTask\Concerns;
 
 use Filament\Support\Concerns\EvaluatesClosures;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Support\Traits\Conditionable;
 use PHPTools\LaravelDatabaseTask\Enums\InputType;
@@ -20,6 +19,10 @@ trait InteractsWithInput
     protected bool | \Closure $isExcluded = false;
 
     protected array | \Closure $options = [];
+
+    protected string | \Closure $dateDisplayFormat = 'Y-m-d';
+
+    protected string | \Closure $datetimeDisplayFormat = 'Y-m-d H:i:s';
 
     protected bool | \Closure $hasTime = false;
 
@@ -81,7 +84,7 @@ trait InteractsWithInput
         return $this;
     }
 
-    public function asDatetime(bool | \Closure $hasTime = false): self
+    public function asDatetime(bool | \Closure $hasTime = true): self
     {
         $this->type = InputType::DATETIME;
         $this->hasTime = $hasTime;
@@ -137,6 +140,27 @@ trait InteractsWithInput
     public function hasTime(): bool
     {
         return (bool) $this->evaluate($this->hasTime);
+    }
+
+    public function dateDisplayFormat(string | \Closure $format): self
+    {
+        $this->dateDisplayFormat = $format;
+
+        return $this;
+    }
+
+    public function datetimeDisplayFormat(string | \Closure $format): self
+    {
+        $this->datetimeDisplayFormat = $format;
+
+        return $this;
+    }
+
+    public function getDisplayFormat(): string
+    {
+        return $this->hasTime()
+            ? (string) $this->evaluate($this->datetimeDisplayFormat)
+            : (string) $this->evaluate($this->dateDisplayFormat);
     }
 
     public function multiple(bool | \Closure $condition = true): self
