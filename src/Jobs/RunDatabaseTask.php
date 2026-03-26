@@ -5,6 +5,7 @@ namespace PHPTools\LaravelDatabaseTask\Jobs;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
+use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
 use PHPTools\LaravelDatabaseTask\Enums\TaskStatus;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 use PHPTools\LaravelDatabaseTask\Outputs\TextOutput;
@@ -44,6 +45,10 @@ class RunDatabaseTask implements ShouldQueue
     {
         $output = $task->run();
 
+        if ($output instanceof \Generator) {
+            $output = $this->handleGenerator($output);
+        }
+
         $outputValue = $output->getValue();
 
         $isFile = $outputValue instanceof \SplFileObject;
@@ -63,6 +68,27 @@ class RunDatabaseTask implements ShouldQueue
         }
 
         $task->markAs(TaskStatus::PROCESSED)->save();
+    }
+
+    protected function handleGenerator(\Generator $generator): OutputInterface
+    {
+        $output = $generator->current();
+
+        if (! $output instanceof OutputInterface) {
+            throw new \RuntimeException('The first item yielded by the Generator must be an instance of OutputInterface.');
+        }
+
+        $generator->next();
+
+        while ($generator->valid()) {
+            if ($output instanceof \SplFileObject) {
+                $output->fputcsv($generator->current());
+            }
+
+            $generator->next();
+        }
+
+        return $output;
     }
 
     protected function runTaskFailed(DatabaseTask $task, \Throwable $e): void

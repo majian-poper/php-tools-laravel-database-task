@@ -12,5 +12,5 @@ interface DatabaseTaskInterface
 
     public function preview(InputInterface ...$inputs): Htmlable;
 
-    public function run(InputInterface ...$inputs): OutputInterface;
+    public function run(InputInterface ...$inputs): OutputInterface | \Generator;
 }

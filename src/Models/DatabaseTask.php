@@ -63,7 +63,7 @@ class DatabaseTask extends Model
         return $this->taskInstance ??= app($this->task_class);
     }
 
-    public function run(): OutputInterface
+    public function run(): OutputInterface | \Generator
     {
         return $this->toTask()->run(...$this->inputs->map->toInput()->all());
     }
