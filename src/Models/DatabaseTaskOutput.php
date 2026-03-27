@@ -6,6 +6,8 @@ use Filament\Actions\Action;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Auth;
+use PHPTools\LaravelDatabaseTask\Concerns\InteractsWithOutput;
+use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
 use PHPTools\LaravelDatabaseTask\Events;
 use Spatie\MediaLibrary\HasMedia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -47,6 +49,24 @@ class DatabaseTaskOutput extends Model implements HasMedia
     public function isValid(): bool
     {
         return ! $this->isExpired();
+    }
+
+    public function toOutput(): OutputInterface
+    {
+        if ($this->is_file) {
+            return new $this->output_class($this->file->getPath());
+        }
+
+        /** @var OutputInterface|InteractsWithOutput $output */
+        $output = app($this->output_class);
+
+        $output->value($this->output_value);
+
+        if ($this->expires_at) {
+            $output->expiresAt($this->expires_at);
+        }
+
+        return $output;
     }
 
     public function toDownloadAction(): Action
