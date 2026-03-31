@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use PHPTools\LaravelDatabaseTask\Contracts\BatchContextInterface;
 use PHPTools\LaravelDatabaseTask\Contracts\DatabaseTaskInterface;
 use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
 use PHPTools\LaravelDatabaseTask\Enums;
@@ -63,9 +64,9 @@ class DatabaseTask extends Model
         return $this->taskInstance ??= app($this->task_class);
     }
 
-    public function run(): OutputInterface
+    public function run(?BatchContextInterface $context = null): OutputInterface
     {
-        return $this->toTask()->run(...$this->inputs->map->toInput()->all());
+        return $this->toTask()->run($context, ...$this->inputs->map->toInput()->all());
     }
 
     public function previewable(): bool
@@ -124,6 +125,14 @@ class DatabaseTask extends Model
     {
         return $this->hasMany(
             config('database-task.implementations.database_task_output', DatabaseTaskOutput::class),
+            'database_task_id'
+        );
+    }
+
+    public function batches(): HasMany
+    {
+        return $this->hasMany(
+            config('database-task.implementations.database_task_batch', DatabaseTaskBatch::class),
             'database_task_id'
         );
     }
