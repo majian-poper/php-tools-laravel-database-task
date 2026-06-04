@@ -15,7 +15,9 @@ class RunScheduledCommand extends Command
 
     public function handle()
     {
-        DatabaseTask::query()
+        $taskModel = config('database-task.implementations.database_task', DatabaseTask::class);
+
+        $taskModel::query()
             ->whereNotNull('schedules_at')
             ->where('schedules_at', '<=', now())
             ->where('status', TaskStatus::APPROVED)

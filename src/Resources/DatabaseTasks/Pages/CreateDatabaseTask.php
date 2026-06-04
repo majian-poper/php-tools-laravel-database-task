@@ -43,7 +43,9 @@ class CreateDatabaseTask extends CreateRecord
     {
         $this->callHook('beforeFill');
 
-        $taskClass = DatabaseTaskClass::query()
+        $taskClassModel = config('database-task.implementations.database_task_class', DatabaseTaskClass::class);
+
+        $taskClass = $taskClassModel::query()
             ->where('md5', request()->route('task_class'))
             ->firstOrFail();
 

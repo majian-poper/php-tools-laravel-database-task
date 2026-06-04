@@ -13,11 +13,14 @@ class DatabaseTaskClassResource extends Resource
 {
     protected static bool $shouldRegisterNavigation = false;
 
-    protected static ?string $model = DatabaseTaskClass::class;
-
     public static function getSlug(?Panel $panel = null): string
     {
         return 'database-task-classes';
+    }
+
+    public static function getModel(): string
+    {
+        return config('database-task.implementations.database_task_class', DatabaseTaskClass::class);
     }
 
     public static function getModelLabel(): string
