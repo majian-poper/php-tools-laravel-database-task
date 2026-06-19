@@ -3,10 +3,13 @@
 namespace PHPTools\LaravelDatabaseTask\Concerns;
 
 use Filament\Support\Concerns\EvaluatesClosures;
+use Illuminate\Support\Traits\Conditionable;
 
 trait InteractsWithOutput
 {
+    use Conditionable;
     use EvaluatesClosures;
+    use InteractsWithBatchable;
 
     protected null | string | \SplFileObject | \Closure $value = null;
 

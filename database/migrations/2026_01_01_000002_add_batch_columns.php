@@ -13,13 +13,13 @@ return new class extends Migration
     {
         if (! Schema::hasColumns('database_task_inputs', ['batch_order'])) {
             Schema::table('database_task_inputs', function (Blueprint $table) {
-                $table->unsignedInteger('batch_order')->default(0)->after('is_excluded');
+                $table->unsignedInteger('batch_order')->default(0)->after('is_excluded')->index();
             });
         }
 
         if (! Schema::hasColumns('database_task_outputs', ['batch_order'])) {
             Schema::table('database_task_outputs', function (Blueprint $table) {
-                $table->unsignedInteger('batch_order')->default(0)->after('is_file');
+                $table->unsignedInteger('batch_order')->default(0)->after('is_file')->index();
             });
         }
     }

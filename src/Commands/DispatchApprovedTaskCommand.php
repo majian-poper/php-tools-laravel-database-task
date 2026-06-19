@@ -14,7 +14,7 @@ use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 
 class DispatchApprovedTaskCommand extends Command
 {
-    protected $signature = 'approved-database-task:dispatch';
+    protected $signature = 'approved-task:dispatch';
 
     protected $description = 'Dispatch approved database task jobs.';
 
@@ -32,27 +32,28 @@ class DispatchApprovedTaskCommand extends Command
         (clone $query)->take(5)->get()->each($this->dispatchJob(...));
 
         if ((clone $query)->exists()) {
-            Artisan::queue('approved-database-task:dispatch')->delay(5);
+            Artisan::queue('approved-task:dispatch')->delay(5);
         }
     }
 
     protected function dispatchJob(DatabaseTask $databaseTask): void
     {
-        $task = DatabaseTaskFacade::toTask($databaseTask);
+        $task = $databaseTask->toTask();
 
         if (\is_null($task)) {
-            // TODO: 写入 output 记录原因
-            $databaseTask->updateStatus(to: TaskStatus::FAILED);
+            $databaseTask->updateStatusFailed('Task class not found.');
 
             return;
         }
 
-        $job = $task instanceof Contracts\BatchableTaskInterface
-            ? new Jobs\DispatchBatchableDatabaseTask($databaseTask)
-            : new Jobs\RunDatabaseTask($databaseTask);
+        if (! $task instanceof Contracts\BatchableTaskInterface) {
+            Jobs\RunDatabaseTask::dispatch($databaseTask);
 
-        Bus::batch([$job])
-            ->name($databaseTask->batch_name)
+            return;
+        }
+
+        Bus::batch([new Jobs\DispatchBatchableTask($databaseTask)])
+            ->name($databaseTask->job_name)
             ->dispatchIf($databaseTask->updateStatus(to: TaskStatus::PROCESSING, from: TaskStatus::APPROVED));
     }
 }

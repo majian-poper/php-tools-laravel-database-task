@@ -15,7 +15,6 @@ use PHPTools\LaravelDatabaseTask\Enums\TaskRisk;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskClass;
-use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskInput;
 
 class CreateDatabaseTask extends CreateRecord
 {
@@ -90,10 +89,11 @@ class CreateDatabaseTask extends CreateRecord
 
         $task->user()->associate(Auth::user())->save();
 
-        $task->inputs()->createMany(
+        $task->inputs()->insert(
             collect(Arr::pull($data, 'inputs'))
-                ->map(static fn(array $data) => DatabaseTaskInput::fromArray($data)?->getAttributes())
+                ->map(static fn(array $array): ?array => DatabaseTaskFacade::fromInputArray($array, 0, $task)?->getAttributes())
                 ->filter()
+                ->all()
         );
 
         return $task;
@@ -121,16 +121,8 @@ class CreateDatabaseTask extends CreateRecord
                     $data = $this->form->getState();
 
                     $inputs = collect(Arr::pull($data, 'inputs'))
-                        ->filter(static fn(array $input): bool => filled($input['input_value']))
-                        ->map(
-                            static function (array $input): InputInterface {
-                                if (\is_array($input['input_value'])) {
-                                    $input['input_value'] = implode(',', $input['input_value']);
-                                }
-
-                                return DatabaseTaskFacade::resolveModel(DatabaseTaskInput::class)->forceFill($input)->toInput();
-                            }
-                        )
+                        ->map(static fn(array $array) => DatabaseTaskFacade::fromInputArray($array, 0)?->toInput())
+                        ->filter()
                         ->all();
 
                     return app($data['task_class'])->preview(...$inputs);

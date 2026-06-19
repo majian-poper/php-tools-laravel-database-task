@@ -2,16 +2,13 @@
 
 namespace PHPTools\LaravelDatabaseTask\Models;
 
-use Filament\Actions\Action;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Auth;
 use PHPTools\LaravelDatabaseTask\Contracts\BatchableOutput;
 use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
-use PHPTools\LaravelDatabaseTask\Events;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
+use PHPTools\LaravelDatabaseTask\Outputs\FileOutput;
 use Spatie\MediaLibrary\HasMedia;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * @property int $database_task_id
@@ -45,6 +42,8 @@ class DatabaseTaskOutput extends Model implements HasMedia
         'expires_at',
     ];
 
+    protected ?OutputInterface $outputInstance = null;
+
     public static function fromOutput(OutputInterface $output, ?DatabaseTask $databaseTask = null): static
     {
         $value = $output->getValue();
@@ -64,6 +63,8 @@ class DatabaseTaskOutput extends Model implements HasMedia
             $model->task()->associate($databaseTask);
         }
 
+        $model->outputInstance = $output;
+
         return $model;
     }
 
@@ -77,13 +78,34 @@ class DatabaseTaskOutput extends Model implements HasMedia
         return ! $this->isExpired();
     }
 
-    public function toDownloadAction(): Action
+    /**
+     * @return OutputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithOutput
+     */
+    public function toOutput(): OutputInterface
     {
-        return Action::make('download')
-            ->label(__('database-task::model.database_task_output.actions.download'))
-            ->visible(fn(): bool => $this->is_file && $this->isValid() && isset($this->file))
-            ->before(fn() => Events\TaskOutputDownloading::dispatch($this, Auth::user()))
-            ->action(fn(): StreamedResponse => $this->file->toResponse(request()));
+        if (isset($this->outputInstance)) {
+            return $this->outputInstance;
+        }
+
+        // TODO try-catch
+
+        $isFile = $this->is_file && $this->file && \is_writable($filename = $this->file->getFilePath());
+
+        if ($isFile && \is_a($this->output_class, FileOutput::class, true)) {
+            /** @var FileOutput @output */
+            $output = app($this->output_class, \compact('filename'));
+        } else {
+            /** @var OutputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithOutput */
+            $output = app($this->output_class);
+
+            $output->value($this->output_value);
+        }
+
+        if ($output instanceof BatchableOutput && \method_exists($output, 'batchOrder')) {
+            $output->batchOrder($this->batch_order);
+        }
+
+        return $this->outputInstance = $output;
     }
 
     // --- Relationships ---

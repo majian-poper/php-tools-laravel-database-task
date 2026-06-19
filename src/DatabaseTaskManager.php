@@ -6,6 +6,11 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use PHPTools\LaravelDatabaseTask\Contracts\InputInterface;
+use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
+use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
+use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskInput;
+use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskOutput;
 
 class DatabaseTaskManager
 {
@@ -53,6 +58,21 @@ class DatabaseTaskManager
         return new ($this->resolveModelClass($modelClass));
     }
 
+    public function fromInputArray(array $input, int $batchOrder = 0, ?DatabaseTask $databaseTask = null): ?DatabaseTaskInput
+    {
+        return $this->resolveModelClass(DatabaseTaskInput::class)::fromArray($input, $batchOrder, $databaseTask);
+    }
+
+    public function fromInput(InputInterface $input, ?DatabaseTask $databaseTask = null): ?DatabaseTaskInput
+    {
+        return $this->resolveModelClass(DatabaseTaskInput::class)::fromInput($input, $databaseTask);
+    }
+
+    public function fromOutput(OutputInterface $output, ?DatabaseTask $databaseTask = null): ?DatabaseTaskOutput
+    {
+        return $this->resolveModelClass(DatabaseTaskOutput::class)::fromOutput($output, $databaseTask);
+    }
+
     /**
      * @param null | bool | int | string | \DateTime | \SplFileObject | iterable $value
      */
@@ -63,7 +83,7 @@ class DatabaseTaskManager
             $value instanceof \SplFileObject => '',
             \is_string($value), \is_numeric($value) => (string) $value,
             \is_bool($value) => $value ? '1' : '0',
-            \is_iterable($value) => implode(',', $value),
+            \is_iterable($value) => implode(',', \iterator_to_array($value)),
             $value instanceof \DateTimeInterface => $value->format('Y-m-d H:i:s'),
             default => throw new \InvalidArgumentException('Unsupported value type.'),
         };

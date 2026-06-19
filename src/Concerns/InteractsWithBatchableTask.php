@@ -2,13 +2,9 @@
 
 namespace PHPTools\LaravelDatabaseTask\Concerns;
 
-use Filament\Support\Concerns\EvaluatesClosures;
-use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
-use Illuminate\Support\Traits\Conditionable;
+use PHPTools\LaravelDatabaseTask\Contracts\BatchableInput;
 use PHPTools\LaravelDatabaseTask\Contracts\InputInterface;
-use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
 
 /**
  * @mixin \PHPTools\LaravelDatabaseTask\Contracts\TaskInterface
@@ -16,22 +12,24 @@ use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
  *
  * @method static array<InputInterface> getSupportInputs()
  */
-trait InteractsWithTask
+trait InteractsWithBatchableTask
 {
-    use Conditionable;
-    use EvaluatesClosures;
-
-    public function getTitle(): string
-    {
-        $taskName = Str::of(static::class)->afterLast('\\')->snake();
-
-        return __("database-task::tasks.title.{$taskName}");
+    use InteractsWithTask {
+        filterInputs as protected baseFilterInputs;
     }
 
     public function filterInputs(InputInterface ...$inputs): Collection
     {
+        $getBatchorder = static fn(InputInterface $input): int => $input instanceof BatchableInput
+            ? $input->getBatchOrder()
+            : 0;
+
+        $inputs = collect($inputs)
+            ->groupBy->getName()
+            ->map(static fn(Collection $inputs): InputInterface => $inputs->sortByDesc($getBatchorder)->first());
+
         $supportInputs = collect(static::getSupportInputs())->keyBy->getName();
-        $inputs = collect($inputs)->keyBy->getName();
+
         $validInputs = collect();
 
         /** @var InputInterface|\PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput $input */
@@ -46,21 +44,12 @@ trait InteractsWithTask
         return $validInputs;
     }
 
-    public function preview(InputInterface ...$inputs): Htmlable
+    public function getBatchableInputs(InputInterface ...$inputs): iterable
     {
         $filteredInputs = $this->filterInputs(...$inputs);
 
-        return $this->handlePreview($filteredInputs);
+        return $this->handleGetBatchableInputs($filteredInputs);
     }
 
-    public function run(InputInterface ...$inputs): OutputInterface
-    {
-        $filteredInputs = $this->filterInputs(...$inputs);
-
-        return $this->handleRun($filteredInputs);
-    }
-
-    abstract protected function handlePreview(Collection $inputs): Htmlable;
-
-    abstract protected function handleRun(Collection $inputs): OutputInterface;
+    abstract protected function handleGetBatchableInputs(Collection $filteredInputs): iterable;
 }

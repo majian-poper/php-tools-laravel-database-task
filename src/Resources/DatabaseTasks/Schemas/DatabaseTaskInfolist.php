@@ -2,14 +2,18 @@
 
 namespace PHPTools\LaravelDatabaseTask\Resources\DatabaseTasks\Schemas;
 
+use Filament\Actions\Action;
 use Filament\Infolists;
 use Filament\Schemas;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
 use PHPTools\LaravelDatabaseTask\DatabaseTaskPlugin;
 use PHPTools\LaravelDatabaseTask\Enums;
+use PHPTools\LaravelDatabaseTask\Events;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskInput;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskOutput;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DatabaseTaskInfolist
 {
@@ -136,8 +140,17 @@ class DatabaseTaskInfolist
                 ->color(static fn(DatabaseTaskOutput $record): string => $record->isValid() ? 'success' : 'danger')
                 ->visible(static fn(DatabaseTaskOutput $record): bool => $record->is_file && filled($record->expires_at)),
             Schemas\Components\Group::make()
-                ->schema(static fn(DatabaseTaskOutput $record): array => [$record->toDownloadAction()])
+                ->schema(static fn(DatabaseTaskOutput $record): array => [static::toDownloadAction($record)])
                 ->visible(static fn(DatabaseTaskOutput $record): bool => $record->is_file && $record->isValid()),
         ];
+    }
+
+    protected static function toDownloadAction(DatabaseTaskOutput $record): Action
+    {
+        return Action::make('download')
+            ->label(__('database-task::model.database_task_output.actions.download'))
+            ->visible(fn(): bool => $record->is_file && $record->isValid() && isset($record->file))
+            ->before(fn() => Events\TaskOutputDownloading::dispatch($record, Auth::user()))
+            ->action(fn(): StreamedResponse => $record->file->toResponse(request()));
     }
 }

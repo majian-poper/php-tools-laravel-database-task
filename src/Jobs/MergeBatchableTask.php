@@ -7,13 +7,14 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\Skip;
+use PHPTools\LaravelDatabaseTask\Contracts\BatchableTaskInterface;
 use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
-use PHPTools\LaravelDatabaseTask\Contracts\TaskInterface;
+use PHPTools\LaravelDatabaseTask\Enums\TaskStatus;
 use PHPTools\LaravelDatabaseTask\Events;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 
-class RunDatabaseTask implements ShouldQueue
+class MergeBatchableTask implements ShouldQueue
 {
     use Batchable;
     use Concerns\WithDatabaseTask;
@@ -29,12 +30,12 @@ class RunDatabaseTask implements ShouldQueue
 
     public function displayName(): string
     {
-        return \sprintf('%s.run', $this->databaseTask->job_name);
+        return \sprintf('%s.merge', $this->databaseTask->job_name);
     }
 
     public function middleware(): array
     {
-        return [Skip::unless($this->isProcessing())];
+        return [Skip::unless($this->batching() && $this->isProcessing())];
     }
 
     public function handle(): void
@@ -43,11 +44,11 @@ class RunDatabaseTask implements ShouldQueue
         $task = $databaseTask->toTask();
 
         try {
-            if (! $task instanceof TaskInterface) {
-                throw new \RuntimeException('Task is not valid.');
+            if (! $task instanceof BatchableTaskInterface) {
+                throw new \RuntimeException('Task is not batchable.');
             }
 
-            $output = $task->run(...$databaseTask->getInputs());
+            $mergedOutput = $task->mergeBatchableOutputs(...$databaseTask->getBatchableOutputs());
         } catch (\Throwable $e) {
             $this->batch()->cancel();
 
@@ -56,21 +57,26 @@ class RunDatabaseTask implements ShouldQueue
             return;
         }
 
-        $this->saveOutput($databaseTask, $output);
-
-        Events\TaskFinished::dispatch($databaseTask);
+        $this->saveOutput($databaseTask, $mergedOutput);
     }
 
-    protected function saveOutput(DatabaseTask $databaseTask, OutputInterface $output): void
+    protected function saveOutput(DatabaseTask $databaseTask, OutputInterface $mergedOutput): void
     {
-        $outputValue = $output->getValue();
+        $outputValue = $mergedOutput->getValue();
 
+        // Delete existing outputs for the non-batchable outputs (batch_order = 0)
         $databaseTask->outputs()->get()->map->delete();
 
-        $databaseTaskOutput = tap(DatabaseTaskFacade::fromOutput($output, $databaseTask))->save();
+        $databaseTaskOutput = DatabaseTaskFacade::fromOutput($mergedOutput, $databaseTask);
+
+        $databaseTaskOutput->save();
 
         if ($outputValue instanceof \SplFileObject && $outputValue->isReadable()) {
             $databaseTaskOutput->addMedia($outputValue->getRealPath())->toMediaCollection();
         }
+
+        $databaseTask->updateStatus(TaskStatus::PROCESSED, TaskStatus::PROCESSING);
+
+        Events\BatchableTaskMerged::dispatch($databaseTask);
     }
 }

@@ -2,12 +2,8 @@
 
 namespace PHPTools\LaravelDatabaseTask\Concerns;
 
-use Filament\Support\Concerns\EvaluatesClosures;
-
 trait InteractsWithBatchable
 {
-    use EvaluatesClosures;
-
     protected int | \Closure $batchOrder = 0;
 
     public function getBatchOrder(): int

@@ -4,17 +4,20 @@ namespace PHPTools\LaravelDatabaseTask\Jobs;
 
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\Skip;
 use PHPTools\LaravelDatabaseTask\Contracts\BatchableInput;
 use PHPTools\LaravelDatabaseTask\Contracts\BatchableTaskInterface;
+use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskInput;
 
-class DispatchBatchableDatabaseTask extends RunDatabaseTask implements ShouldQueue
+class DispatchBatchableTask extends RunDatabaseTask implements ShouldQueue
 {
     use Batchable;
     use Concerns\WithDatabaseTask;
+    use Dispatchable;
     use Queueable;
 
     public function __construct(DatabaseTask $databaseTask)
@@ -24,7 +27,7 @@ class DispatchBatchableDatabaseTask extends RunDatabaseTask implements ShouldQue
 
     public function displayName(): string
     {
-        return \sprintf('%s.dispatch-batch', $this->databaseTask->batch_name);
+        return \sprintf('%s.dispatch-batch', $this->databaseTask->job_name);
     }
 
     public function middleware(): array
@@ -61,9 +64,12 @@ class DispatchBatchableDatabaseTask extends RunDatabaseTask implements ShouldQue
 
         foreach ($batchableInputs as $batchInput) {
             if ($batchInput instanceof BatchableInput) {
-                $inputValues[] = DatabaseTaskInput::fromInput($batchInput, $databaseTask)->getAttributes();
+                $inputValues[] = DatabaseTaskFacade::resolveModel(DatabaseTaskInput::class)
+                    ->fromInput($batchInput, $databaseTask)
+                    ->updateTimestamps()
+                    ->getAttributes();
 
-                $jobs[] = new RunDatabaseTask($databaseTask, $batchInput->getBatchOrder());
+                $jobs[] = new RunBatchableTask($databaseTask, $batchInput->getBatchOrder());
             }
         }
 

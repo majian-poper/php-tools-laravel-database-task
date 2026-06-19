@@ -52,6 +52,11 @@ class DatabaseTaskInput extends Model implements HasMedia
         }
 
         $inputClass = $data['input_class'];
+        $inputValue = $data['input_value'];
+
+        if (blank($inputValue)) {
+            return null;
+        }
 
         if (! \class_exists($inputClass) || ! \is_subclass_of($inputClass, InputInterface::class)) {
             return null;
@@ -60,7 +65,7 @@ class DatabaseTaskInput extends Model implements HasMedia
         $model = new static(
             [
                 'input_class' => $inputClass,
-                'input_value' => DatabaseTaskFacade::valueToString($data['input_value']),
+                'input_value' => DatabaseTaskFacade::valueToString($inputValue),
                 'is_file' => false, // TODO: 支持 file 格式
                 'is_excluded' => \boolval($data['is_excluded'] ?? false),
                 'batch_order' => $batchOrder,
@@ -86,11 +91,11 @@ class DatabaseTaskInput extends Model implements HasMedia
             ]
         );
 
-        $model->inputInstance = $input;
-
         if (filled($databaseTask)) {
             $model->task()->associate($databaseTask);
         }
+
+        $model->inputInstance = $input;
 
         return $model;
     }
@@ -104,6 +109,8 @@ class DatabaseTaskInput extends Model implements HasMedia
             return $this->inputInstance;
         }
 
+        // TODO try-catch
+
         /** @var InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput */
         $input = app($this->input_class);
 
@@ -113,6 +120,10 @@ class DatabaseTaskInput extends Model implements HasMedia
                 fn($input) => $input->asFile()->value(fn(): \SplFileObject => new \SplFileObject($this->file->getFilePath())),
                 fn($input) => $input->value(DatabaseTaskFacade::stringToValue($this->input_value, $input->getType()))
             );
+
+        if ($input instanceof BatchableInput && \method_exists($input, 'batchOrder')) {
+            $input->batchOrder($this->batch_order);
+        }
 
         return $this->inputInstance = $input;
     }

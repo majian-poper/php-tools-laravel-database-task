@@ -26,7 +26,7 @@ use PHPTools\LaravelDatabaseTask\Outputs\TextOutput;
  * @property Enums\TaskStatus $status
  * @property \Carbon\CarbonImmutable | null $schedules_at
  *
- * @property-read string $batch_name
+ * @property-read string $job_name
  * @property-read \Illuminate\Database\Eloquent\Model $user
  * @property-read \Illuminate\Database\Eloquent\Collection<DatabaseTaskInput> $inputs
  * @property-read \Illuminate\Database\Eloquent\Collection<DatabaseTaskOutput> $outputs
@@ -87,19 +87,48 @@ class DatabaseTask extends Model
     }
 
     /**
-     * @return array<Contracts\InputInterface | Contracts\BatchableInput>
-     */
-    public function getBatchInputs(int $batchOrder = 0): array
-    {
-        return $this->inputs($batchOrder)->get()->map->toInput()->all();
-    }
-
-    /**
+     * Get all non-batchable inputs for this task.
+     *
      * @return array<Contracts\InputInterface>
      */
     public function getInputs(): array
     {
-        return $this->getBatchInputs(0);
+        return $this->inputs()->get()->map->toInput()->whereInstanceOf(Contracts\InputInterface::class)->all();
+    }
+
+    /**
+     * Get all non-batchable outputs for this task.
+     */
+    public function getOutputs(): array
+    {
+        return $this->outputs()->get()->map->toOutput()->whereInstanceOf(Contracts\OutputInterface::class)->all();
+    }
+
+    /**
+     * Get all inputs for the specified batch order, including all non-batchable inputs.
+     *
+     * @return array<Contracts\InputInterface | Contracts\BatchableInput>
+     */
+    public function getInputsForBatch(int $batchOrder = 0): array
+    {
+        return $this->inputs($batchOrder)->get()->map->toInput()->whereInstanceOf(Contracts\InputInterface::class)->all();
+    }
+
+    /**
+     * Get all batchable outputs
+     *
+     * @return array<Contracts\BatchableOutput>
+     */
+    public function getBatchableOutputs(): array
+    {
+        return $this->batch_outputs()->get()->map->toOutput()->whereInstanceOf(Contracts\BatchableOutput::class)->all();
+    }
+
+    // --- Status Management ---
+
+    public function markAs(Enums\TaskStatus $status): static
+    {
+        return $this->setAttribute('status', $status);
     }
 
     public function updateStatus(Enums\TaskStatus $to, ?Enums\TaskStatus $from = null): bool
@@ -120,7 +149,8 @@ class DatabaseTask extends Model
 
     public function updateStatusFailed(string $reason): bool
     {
-        $databaseOutput = DatabaseTaskOutput::fromOutput(new TextOutput($reason, 0), $this);
+        $databaseOutput = DatabaseTaskFacade::resolveModel(DatabaseTaskOutput::class)
+            ->fromOutput(new TextOutput($reason), $this);
 
         try {
             $this->getConnection()->transaction(
@@ -136,6 +166,8 @@ class DatabaseTask extends Model
 
         return true;
     }
+
+    // --- Task actions ---
 
     public function previewable(): bool
     {
@@ -164,10 +196,7 @@ class DatabaseTask extends Model
         return $result;
     }
 
-    public function markAs(Enums\TaskStatus $status): static
-    {
-        return $this->setAttribute('status', $status);
-    }
+    // --- Scheduling ---
 
     public function shouldBeScheduled(): bool
     {
@@ -176,7 +205,7 @@ class DatabaseTask extends Model
 
     // --- Accessors ---
 
-    public function batchName(): Attribute
+    public function jobName(): Attribute
     {
         return Attribute::make(
             get: fn(): string => \sprintf('%s#%d', class_basename($this->task_class), $this->getKey()),
@@ -202,23 +231,22 @@ class DatabaseTask extends Model
 
     public function batch_inputs(): HasMany
     {
-        return $this->hasMany(DatabaseTaskFacade::resolveModelClass(DatabaseTaskInput::class), 'database_task_id')
+        return $this
+            ->hasMany(DatabaseTaskFacade::resolveModelClass(DatabaseTaskInput::class), 'database_task_id')
             ->where('batch_order', '>', 0);
     }
 
-    public function outputs(int $batchOrder = 0): HasMany
+    public function outputs(): HasMany
     {
         return $this
             ->hasMany(DatabaseTaskFacade::resolveModelClass(DatabaseTaskOutput::class), 'database_task_id')
-            ->where(
-                static fn(Builder $query) => $query->where('batch_order', 0)
-                    ->when($batchOrder > 0)->orWhere('batch_order', $batchOrder)
-            );
+            ->where('batch_order', 0);
     }
 
     public function batch_outputs(): HasMany
     {
-        return $this->hasMany(DatabaseTaskFacade::resolveModelClass(DatabaseTaskOutput::class), 'database_task_id')
+        return $this
+            ->hasMany(DatabaseTaskFacade::resolveModelClass(DatabaseTaskOutput::class), 'database_task_id')
             ->where('batch_order', '>', 0);
     }
 }

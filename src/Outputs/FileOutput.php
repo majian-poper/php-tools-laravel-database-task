@@ -5,17 +5,17 @@ namespace PHPTools\LaravelDatabaseTask\Outputs;
 use PHPTools\LaravelDatabaseTask\Concerns;
 use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
 
-class TextOutput implements OutputInterface
+class FileOutput extends \SplFileObject implements OutputInterface
 {
     use Concerns\InteractsWithOutput;
 
-    public function __construct(string $text = '')
+    public function __destruct()
     {
-        $this->value($text);
+        @\unlink($this->getRealPath());
     }
 
-    public function getValue(): string
+    public function getValue(): \SplFileObject
     {
-        return (string) $this->evaluate($this->value);
+        return $this;
     }
 }

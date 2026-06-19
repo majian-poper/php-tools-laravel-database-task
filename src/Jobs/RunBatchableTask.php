@@ -7,13 +7,14 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\Skip;
+use PHPTools\LaravelDatabaseTask\Contracts\BatchableOutput;
 use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
 use PHPTools\LaravelDatabaseTask\Contracts\TaskInterface;
 use PHPTools\LaravelDatabaseTask\Events;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 
-class RunDatabaseTask implements ShouldQueue
+class RunBatchableTask implements ShouldQueue
 {
     use Batchable;
     use Concerns\WithDatabaseTask;
@@ -22,19 +23,19 @@ class RunDatabaseTask implements ShouldQueue
 
     public $timeout = 300; // 5 minutes
 
-    public function __construct(DatabaseTask $databaseTask)
+    public function __construct(DatabaseTask $databaseTask, public int $batchOrder = 0)
     {
         $this->setDatabaseTask($databaseTask);
     }
 
     public function displayName(): string
     {
-        return \sprintf('%s.run', $this->databaseTask->job_name);
+        return \sprintf('%s.%d.run', $this->databaseTask->job_name, $this->batchOrder);
     }
 
     public function middleware(): array
     {
-        return [Skip::unless($this->isProcessing())];
+        return [Skip::unless($this->batching() && $this->isProcessing())];
     }
 
     public function handle(): void
@@ -47,7 +48,7 @@ class RunDatabaseTask implements ShouldQueue
                 throw new \RuntimeException('Task is not valid.');
             }
 
-            $output = $task->run(...$databaseTask->getInputs());
+            $output = $task->run(...$databaseTask->getInputsForBatch($this->batchOrder));
         } catch (\Throwable $e) {
             $this->batch()->cancel();
 
@@ -58,19 +59,39 @@ class RunDatabaseTask implements ShouldQueue
 
         $this->saveOutput($databaseTask, $output);
 
-        Events\TaskFinished::dispatch($databaseTask);
+        $this->dispatchMergeJobIfNeeded($databaseTask);
     }
 
     protected function saveOutput(DatabaseTask $databaseTask, OutputInterface $output): void
     {
         $outputValue = $output->getValue();
 
-        $databaseTask->outputs()->get()->map->delete();
+        $batchOrder = $output instanceof BatchableOutput ? $output->getBatchOrder() : 0;
 
-        $databaseTaskOutput = tap(DatabaseTaskFacade::fromOutput($output, $databaseTask))->save();
+        $databaseTask->batch_outputs()->where('batch_order', $batchOrder)->get()->map->delete();
+
+        $databaseTaskOutput = DatabaseTaskFacade::fromOutput($output, $databaseTask);
+
+        $databaseTaskOutput->save();
 
         if ($outputValue instanceof \SplFileObject && $outputValue->isReadable()) {
             $databaseTaskOutput->addMedia($outputValue->getRealPath())->toMediaCollection();
         }
+    }
+
+    protected function dispatchMergeJobIfNeeded(DatabaseTask $databaseTask): void
+    {
+        $databaseTask->loadCount('batch_inputs', 'batch_outputs');
+
+        $batchInputsCount = $databaseTask->batch_inputs_count;
+        $batchOutputsCount = $databaseTask->batch_outputs_count;
+
+        if ($batchOutputsCount === 0 || $batchInputsCount !== $batchOutputsCount) {
+            return;
+        }
+
+        Events\BatchableTaskFinished::dispatch($databaseTask);
+
+        $this->batch()->add(new MergeBatchableTask($databaseTask));
     }
 }
