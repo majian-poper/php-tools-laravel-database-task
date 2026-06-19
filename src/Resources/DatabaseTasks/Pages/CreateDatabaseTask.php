@@ -12,6 +12,7 @@ use PHPTools\LaravelDatabaseTask\Contracts\TaskInterface;
 use PHPTools\LaravelDatabaseTask\Contracts\InputInterface;
 use PHPTools\LaravelDatabaseTask\DatabaseTaskPlugin;
 use PHPTools\LaravelDatabaseTask\Enums\TaskRisk;
+use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskClass;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskInput;
@@ -43,9 +44,8 @@ class CreateDatabaseTask extends CreateRecord
     {
         $this->callHook('beforeFill');
 
-        $taskClassModel = config('database-task.implementations.database_task_class', DatabaseTaskClass::class);
-
-        $taskClass = $taskClassModel::query()
+        $taskClass = DatabaseTaskFacade::resolveModel(DatabaseTaskClass::class)
+            ->newQuery()
             ->where('md5', request()->route('task_class'))
             ->firstOrFail();
 
@@ -85,22 +85,15 @@ class CreateDatabaseTask extends CreateRecord
 
     protected function handleRecordCreation(array $data): DatabaseTask
     {
-        $task = static::getResource()::getModel()::query()->make($data);
+        /** @var DatabaseTask $task */
+        $task = $this->getModel()::query()->make($data);
 
         $task->user()->associate(Auth::user())->save();
 
         $task->inputs()->createMany(
             collect(Arr::pull($data, 'inputs'))
-                ->filter(static fn(array $input): bool => filled($input['input_value']))
-                ->map(
-                    static function (array $input): array {
-                        if (\is_array($input['input_value'])) {
-                            $input['input_value'] = \implode(',', $input['input_value']);
-                        }
-
-                        return $input;
-                    }
-                )
+                ->map(static fn(array $data) => DatabaseTaskInput::fromArray($data)?->getAttributes())
+                ->filter()
         );
 
         return $task;
@@ -135,7 +128,7 @@ class CreateDatabaseTask extends CreateRecord
                                     $input['input_value'] = implode(',', $input['input_value']);
                                 }
 
-                                return config('database-task.implementations.database_task_input', DatabaseTaskInput::class)::make($input)->toInput();
+                                return DatabaseTaskFacade::resolveModel(DatabaseTaskInput::class)->forceFill($input)->toInput();
                             }
                         )
                         ->all();

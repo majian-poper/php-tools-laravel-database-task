@@ -6,7 +6,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class DatabaseTaskFile extends Media
 {
-    public function getFileObject(): string
+    public function getFilePath(): string
     {
         try {
             $bytes = \file_put_contents($tmp = \tempnam(\sys_get_temp_dir(), config('app.name') . '-'), $this->stream());

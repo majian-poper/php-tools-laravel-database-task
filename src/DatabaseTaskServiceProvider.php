@@ -2,7 +2,7 @@
 
 namespace PHPTools\LaravelDatabaseTask;
 
-use PHPTools\LaravelDatabaseTask\Commands\RunScheduledCommand;
+use PHPTools\LaravelDatabaseTask\Commands\DispatchApprovedTaskCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -12,7 +12,7 @@ class DatabaseTaskServiceProvider extends PackageServiceProvider
     {
         $package
             ->name('laravel-database-task')
-            ->hasCommand(RunScheduledCommand::class)
+            ->hasCommand(DispatchApprovedTaskCommand::class)
             ->hasConfigFile()
             ->hasTranslations()
             ->discoversMigrations();

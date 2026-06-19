@@ -7,6 +7,7 @@ use Filament\Panel;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use PHPTools\LaravelDatabaseTask\DatabaseTaskPlugin;
+use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskClass;
 
 class DatabaseTaskClassResource extends Resource
@@ -20,7 +21,7 @@ class DatabaseTaskClassResource extends Resource
 
     public static function getModel(): string
     {
-        return config('database-task.implementations.database_task_class', DatabaseTaskClass::class);
+        return DatabaseTaskFacade::resolveModelClass(DatabaseTaskClass::class);
     }
 
     public static function getModelLabel(): string

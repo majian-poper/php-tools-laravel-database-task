@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
 use PHPTools\LaravelDatabaseTask\DatabaseTaskPlugin;
+use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 use PHPTools\LaravelDatabaseTask\Resources\DatabaseTasks\Pages;
 use PHPTools\LaravelDatabaseTask\Resources\DatabaseTasks\Tables;
@@ -31,7 +32,7 @@ trait InteractsWithDatabaseTasks
 
     public static function getModel(): string
     {
-        return config('database-task.implementations.database_task', DatabaseTask::class);
+        return DatabaseTaskFacade::resolveModelClass(DatabaseTask::class);
     }
 
     public static function getModelLabel(): string

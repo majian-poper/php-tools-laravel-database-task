@@ -50,6 +50,9 @@ trait InteractsWithInput
         return Str::of(static::class)->afterLast('\\')->snake()->toString();
     }
 
+    /**
+     * @return null | bool | int | string | \DateTime | \SplFileObject | iterable
+     */
     public function getValue(): mixed
     {
         return $this->evaluate($this->value);

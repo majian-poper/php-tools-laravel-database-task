@@ -3,15 +3,18 @@
 namespace PHPTools\LaravelDatabaseTask\Models;
 
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
-use PHPTools\LaravelDatabaseTask\Contracts\DatabaseTaskInterface;
-use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
+use PHPTools\LaravelDatabaseTask\Contracts;
 use PHPTools\LaravelDatabaseTask\Enums;
 use PHPTools\LaravelDatabaseTask\Events;
+use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
+use PHPTools\LaravelDatabaseTask\Outputs\TextOutput;
 
 /**
  * @property string $user_type
@@ -23,10 +26,10 @@ use PHPTools\LaravelDatabaseTask\Events;
  * @property Enums\TaskStatus $status
  * @property \Carbon\CarbonImmutable | null $schedules_at
  *
- * @property \Illuminate\Database\Eloquent\Model $user
- *
- * @property \Illuminate\Database\Eloquent\Collection<DatabaseTaskInput> $inputs
- * @property \Illuminate\Database\Eloquent\Collection<DatabaseTaskOutput> $outputs
+ * @property-read string $batch_name
+ * @property-read \Illuminate\Database\Eloquent\Model $user
+ * @property-read \Illuminate\Database\Eloquent\Collection<DatabaseTaskInput> $inputs
+ * @property-read \Illuminate\Database\Eloquent\Collection<DatabaseTaskOutput> $outputs
  */
 class DatabaseTask extends Model
 {
@@ -54,18 +57,84 @@ class DatabaseTask extends Model
         'schedules_at',
     ];
 
-    protected ?DatabaseTaskInterface $taskInstance = null;
+    protected ?Contracts\TaskInterface $taskInstance = null;
 
     // --- DatabaseTask ---
 
-    public function toTask(): DatabaseTaskInterface
+    public function toTask(): ?Contracts\TaskInterface
     {
-        return $this->taskInstance ??= app($this->task_class);
+        if (isset($this->taskInstance)) {
+            return $this->taskInstance;
+        }
+
+        try {
+            $task = app($this->task_class);
+
+            if (! $task instanceof Contracts\TaskInterface) {
+                throw new \RuntimeException(
+                    \sprintf(
+                        'Task class %s must implement %s interface.',
+                        $this->task_class,
+                        Contracts\TaskInterface::class
+                    )
+                );
+            }
+        } catch (\Throwable $e) {
+            $task = null;
+        }
+
+        return $this->taskInstance = $task;
     }
 
-    public function run(): OutputInterface
+    /**
+     * @return array<Contracts\InputInterface | Contracts\BatchableInput>
+     */
+    public function getBatchInputs(int $batchOrder = 0): array
     {
-        return $this->toTask()->run(...$this->inputs->map->toInput()->all());
+        return $this->inputs($batchOrder)->get()->map->toInput()->all();
+    }
+
+    /**
+     * @return array<Contracts\InputInterface>
+     */
+    public function getInputs(): array
+    {
+        return $this->getBatchInputs(0);
+    }
+
+    public function updateStatus(Enums\TaskStatus $to, ?Enums\TaskStatus $from = null): bool
+    {
+        try {
+            return $this->getConnection()->transaction(
+                fn(): bool => $this->newQuery()
+                    ->whereKey($this->getKey())
+                    ->when(isset($from), static fn($query) => $query->where('status', $from))
+                    ->lockForUpdate()
+                    ->update(['status' => $to]) > 0,
+                3
+            );
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    public function updateStatusFailed(string $reason): bool
+    {
+        $databaseOutput = DatabaseTaskOutput::fromOutput(new TextOutput($reason, 0), $this);
+
+        try {
+            $this->getConnection()->transaction(
+                function () use ($databaseOutput) {
+                    $this->markAs(Enums\TaskStatus::FAILED)->save();
+
+                    $databaseOutput->save();
+                }
+            );
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        return true;
     }
 
     public function previewable(): bool
@@ -76,7 +145,7 @@ class DatabaseTask extends Model
 
     public function preview(): Htmlable
     {
-        return $this->toTask()->preview(...$this->inputs->map->toInput()->all());
+        return $this->toTask()->preview(...$this->getInputs());
     }
 
     public function requestable(): bool
@@ -105,6 +174,15 @@ class DatabaseTask extends Model
         return $this->schedules_at?->isFuture() ?? false;
     }
 
+    // --- Accessors ---
+
+    public function batchName(): Attribute
+    {
+        return Attribute::make(
+            get: fn(): string => \sprintf('%s#%d', class_basename($this->task_class), $this->getKey()),
+        );
+    }
+
     // --- Relationships ---
 
     public function user(): BelongsTo
@@ -112,19 +190,36 @@ class DatabaseTask extends Model
         return $this->morphTo('user');
     }
 
-    public function inputs(): HasMany
+    public function inputs(int $batchOrder = 0): HasMany
     {
-        return $this->hasMany(
-            config('database-task.implementations.database_task_input', DatabaseTaskInput::class),
-            'database_task_id'
-        );
+        return $this
+            ->hasMany(DatabaseTaskFacade::resolveModelClass(DatabaseTaskInput::class), 'database_task_id')
+            ->where(
+                static fn(Builder $query) => $query->where('batch_order', 0)
+                    ->when($batchOrder > 0)->orWhere('batch_order', $batchOrder)
+            );
     }
 
-    public function outputs(): HasMany
+    public function batch_inputs(): HasMany
     {
-        return $this->hasMany(
-            config('database-task.implementations.database_task_output', DatabaseTaskOutput::class),
-            'database_task_id'
-        );
+        return $this->hasMany(DatabaseTaskFacade::resolveModelClass(DatabaseTaskInput::class), 'database_task_id')
+            ->where('batch_order', '>', 0);
+    }
+
+    public function outputs(int $batchOrder = 0): HasMany
+    {
+        return $this
+            ->hasMany(DatabaseTaskFacade::resolveModelClass(DatabaseTaskOutput::class), 'database_task_id')
+            ->where(
+                static fn(Builder $query) => $query->where('batch_order', 0)
+                    ->when($batchOrder > 0)->orWhere('batch_order', $batchOrder)
+            )
+        ;
+    }
+
+    public function batch_outputs(): HasMany
+    {
+        return $this->hasMany(DatabaseTaskFacade::resolveModelClass(DatabaseTaskOutput::class), 'database_task_id')
+            ->where('batch_order', '>', 0);
     }
 }

@@ -3,6 +3,7 @@
 namespace PHPTools\LaravelDatabaseTask\Models\Concerns;
 
 use Illuminate\Database\Eloquent\Relations\MorphOne;
+use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskFile;
 use Spatie\MediaLibrary\InteractsWithMedia as SpatieInteractsWithMedia;
 
@@ -15,7 +16,7 @@ trait InteractsWithMedia
 
     public function getMediaModel(): string
     {
-        return config('database-task.implementations.database_task_file', DatabaseTaskFile::class);
+        return DatabaseTaskFacade::resolveModelClass(DatabaseTaskFile::class);
     }
 
     public function file(): MorphOne
