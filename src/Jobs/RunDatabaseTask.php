@@ -2,80 +2,78 @@
 
 namespace PHPTools\LaravelDatabaseTask\Jobs;
 
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Queue\Middleware\Skip;
+use Illuminate\Queue\Middleware\SkipIfBatchCancelled;
+use PHPTools\LaravelDatabaseTask\Contracts\BatchableInput;
+use PHPTools\LaravelDatabaseTask\Contracts\BatchableOutput;
+use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
+use PHPTools\LaravelDatabaseTask\Contracts\TaskInterface;
 use PHPTools\LaravelDatabaseTask\Enums\TaskStatus;
+use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
+use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskOutput;
 use PHPTools\LaravelDatabaseTask\Outputs\TextOutput;
 
 class RunDatabaseTask implements ShouldQueue
 {
+    use Concerns\WithDatabaseTask;
+    use Batchable;
     use Queueable;
 
     public $timeout = 300; // 5 minutes
 
-    public function __construct(public DatabaseTask $task) {}
+    public function __construct(DatabaseTask $databaseTask, public int $batchOrder = 0)
+    {
+        $this->setDatabaseTask($databaseTask);
+    }
 
     public function displayName(): string
     {
-        return \sprintf(
-            '%s #%d (%s)',
-            class_basename($this),
-            $this->task->getKey(),
-            $this->task->task_class,
-        );
+        return \sprintf('%s.%d.run', $this->databaseTask->batch_name, $this->batchOrder);
+    }
+
+    public function middleware(): array
+    {
+        return [Skip::unless($this->batching() && $this->isProcessing())];
     }
 
     public function handle(): void
     {
-        $this->task->markAs(TaskStatus::PROCESSING)->save();
-
-        $this->task->outputs()->delete();
+        $databaseTask = $this->getDatabaseTask();
+        $task = $databaseTask->toTask();
 
         try {
-            DB::transaction(fn() => $this->runTask($this->task));
+            if (! $task instanceof TaskInterface) {
+                throw new \RuntimeException('Task is not valid.');
+            }
+
+            $output = $task->run(...$databaseTask->getBatchInputs($this->batchOrder));
         } catch (\Throwable $e) {
-            $this->runTaskFailed($this->task, $e);
+            $this->batch()->cancel();
+
+            $databaseTask->updateStatusFailed($e->getMessage());
+
+            return;
         }
+
+        $this->saveOutput($databaseTask, $output);
     }
 
-    protected function runTask(DatabaseTask $task): void
+    protected function saveOutput(DatabaseTask $databaseTask, OutputInterface $output): void
     {
-        $output = $task->run();
-
         $outputValue = $output->getValue();
+        $batchOrder = $output instanceof BatchableOutput ? $output->getBatchOrder() : 0;
 
-        $isFile = $outputValue instanceof \SplFileObject;
+        $databaseTask->outputs($batchOrder)->delete();
 
-        /** @var DatabaseTaskOutput $databaseTaskOutput */
-        $databaseTaskOutput = $task->outputs()->create(
-            [
-                'output_class' => \get_class($output),
-                'output_value' => $isFile ? '' : $outputValue,
-                'is_file' => $isFile,
-                'expires_at' => $output->getExpiresAt(),
-            ]
-        );
+        /** @var \PHPTools\LaravelDatabaseTask\Models\DatabaseTaskOutput $databaseTaskOutput */
+        $databaseTaskOutput = tap(DatabaseTaskOutput::fromOutput($output, $databaseTask))->save();
 
-        if ($isFile) {
+        if ($outputValue instanceof \SplFileObject && $outputValue->isReadable()) {
             $databaseTaskOutput->addMedia($outputValue->getRealPath())->toMediaCollection();
         }
-
-        $task->markAs(TaskStatus::PROCESSED)->save();
-    }
-
-    protected function runTaskFailed(DatabaseTask $task, \Throwable $e): void
-    {
-        $task->outputs()->create(
-            [
-                'output_class' => TextOutput::class,
-                'output_value' => $e->getMessage(),
-                'is_file' => false,
-                'expires_at' => null,
-            ]
-        );
-
-        $task->markAs(TaskStatus::FAILED)->save();
     }
 }
