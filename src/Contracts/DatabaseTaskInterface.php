@@ -2,15 +2,7 @@
 
 namespace PHPTools\LaravelDatabaseTask\Contracts;
 
-use Illuminate\Contracts\Support\Htmlable;
-
-interface DatabaseTaskInterface
-{
-    public static function getSupportInputs(): array;
-
-    public function getTitle(): string;
-
-    public function preview(InputInterface ...$inputs): Htmlable;
-
-    public function run(InputInterface ...$inputs): OutputInterface;
-}
+/**
+ * @deprecated Use TaskInterface instead.
+ */
+interface DatabaseTaskInterface extends TaskInterface {}

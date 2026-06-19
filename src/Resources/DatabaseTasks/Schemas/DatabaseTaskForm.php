@@ -7,7 +7,7 @@ use Filament\Forms\Components\CodeEditor\Enums\Language;
 use Filament\Schemas;
 use Filament\Schemas\Components\Utilities;
 use Illuminate\Support\Str;
-use PHPTools\LaravelDatabaseTask\Contracts\DatabaseTaskInterface;
+use PHPTools\LaravelDatabaseTask\Contracts\TaskInterface;
 use PHPTools\LaravelDatabaseTask\Contracts\InputInterface;
 use PHPTools\LaravelDatabaseTask\Enums\InputType;
 use PHPTools\LaravelDatabaseTask\Enums\TaskRisk;
@@ -51,7 +51,7 @@ class DatabaseTaskForm
                     static function (Utilities\Get $get): array {
                         $taskType = $get->string('task_class');
 
-                        if (filled($taskType) && \is_subclass_of($taskType, DatabaseTaskInterface::class)) {
+                        if (filled($taskType) && \is_subclass_of($taskType, TaskInterface::class)) {
                             return collect($taskType::getSupportInputs())
                                 ->map(static::makeFieldsetFor(...))
                                 ->all();
@@ -95,7 +95,7 @@ class DatabaseTaskForm
             InputType::SELECT => static::makeSelectField($input),
             InputType::DATETIME => static::makeDatetimeField($input),
             InputType::BOOLEAN => Forms\Components\Checkbox::make('input_value'),
-            default => throw new \RuntimeException('Unsupported input field type: ' . $input->getType()->value),
+            default => throw new \RuntimeException('Unsupported input field type: ' . $inputType->value),
         };
 
         $field->label($input->getLabel())

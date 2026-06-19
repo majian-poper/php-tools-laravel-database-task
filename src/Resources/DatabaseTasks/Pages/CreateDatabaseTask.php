@@ -8,7 +8,7 @@ use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
-use PHPTools\LaravelDatabaseTask\Contracts\DatabaseTaskInterface;
+use PHPTools\LaravelDatabaseTask\Contracts\TaskInterface;
 use PHPTools\LaravelDatabaseTask\Contracts\InputInterface;
 use PHPTools\LaravelDatabaseTask\DatabaseTaskPlugin;
 use PHPTools\LaravelDatabaseTask\Enums\TaskRisk;
@@ -32,7 +32,7 @@ class CreateDatabaseTask extends CreateRecord
 
         $state = $taskClassComponent?->getState();
 
-        if (isset($state) && \is_subclass_of($state, DatabaseTaskInterface::class)) {
+        if (isset($state) && \is_subclass_of($state, TaskInterface::class)) {
             return (new $state)->getTitle();
         }
 

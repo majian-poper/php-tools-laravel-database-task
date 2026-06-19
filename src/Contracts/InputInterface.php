@@ -13,4 +13,6 @@ interface InputInterface
     public function getName(): string;
 
     public function getValue(): mixed;
+
+    public function isExcluded(): bool;
 }
