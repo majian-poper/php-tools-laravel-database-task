@@ -48,7 +48,7 @@ class DispatchApprovedTaskCommand extends Command
         }
 
         $job = $task instanceof Contracts\BatchableTaskInterface
-            ? new Jobs\DispatchBatchDatabaseTask($databaseTask)
+            ? new Jobs\DispatchBatchableDatabaseTask($databaseTask)
             : new Jobs\RunDatabaseTask($databaseTask);
 
         Bus::batch([$job])

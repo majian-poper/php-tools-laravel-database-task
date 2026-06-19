@@ -3,8 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
-use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 
 return new class extends Migration
 {

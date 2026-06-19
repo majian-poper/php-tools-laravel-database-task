@@ -4,9 +4,7 @@ namespace PHPTools\LaravelDatabaseTask\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Str;
 use PHPTools\LaravelDatabaseTask\Contracts\BatchableInput;
-use PHPTools\LaravelDatabaseTask\Contracts\ExcludeableInputInterface;
 use PHPTools\LaravelDatabaseTask\Contracts\InputInterface;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use Spatie\MediaLibrary\HasMedia;

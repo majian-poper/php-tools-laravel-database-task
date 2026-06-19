@@ -11,10 +11,10 @@ use PHPTools\LaravelDatabaseTask\Contracts\BatchableTaskInterface;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskInput;
 
-class DispatchBatchDatabaseTask extends RunDatabaseTask implements ShouldQueue
+class DispatchBatchableDatabaseTask extends RunDatabaseTask implements ShouldQueue
 {
-    use Concerns\WithDatabaseTask;
     use Batchable;
+    use Concerns\WithDatabaseTask;
     use Queueable;
 
     public function __construct(DatabaseTask $databaseTask)

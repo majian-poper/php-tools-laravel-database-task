@@ -213,8 +213,7 @@ class DatabaseTask extends Model
             ->where(
                 static fn(Builder $query) => $query->where('batch_order', 0)
                     ->when($batchOrder > 0)->orWhere('batch_order', $batchOrder)
-            )
-        ;
+            );
     }
 
     public function batch_outputs(): HasMany

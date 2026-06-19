@@ -2,7 +2,6 @@
 
 namespace PHPTools\LaravelDatabaseTask\Jobs\Concerns;
 
-use Illuminate\Queue\Middleware\Skip;
 use PHPTools\LaravelDatabaseTask\Enums\TaskStatus;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 

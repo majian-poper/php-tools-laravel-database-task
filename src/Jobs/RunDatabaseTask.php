@@ -6,21 +6,16 @@ use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\Skip;
-use Illuminate\Queue\Middleware\SkipIfBatchCancelled;
-use PHPTools\LaravelDatabaseTask\Contracts\BatchableInput;
 use PHPTools\LaravelDatabaseTask\Contracts\BatchableOutput;
 use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
 use PHPTools\LaravelDatabaseTask\Contracts\TaskInterface;
-use PHPTools\LaravelDatabaseTask\Enums\TaskStatus;
-use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskOutput;
-use PHPTools\LaravelDatabaseTask\Outputs\TextOutput;
 
 class RunDatabaseTask implements ShouldQueue
 {
-    use Concerns\WithDatabaseTask;
     use Batchable;
+    use Concerns\WithDatabaseTask;
     use Queueable;
 
     public $timeout = 300; // 5 minutes
