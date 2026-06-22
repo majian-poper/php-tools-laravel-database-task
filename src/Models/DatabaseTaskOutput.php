@@ -47,12 +47,12 @@ class DatabaseTaskOutput extends Model implements HasMedia
     public static function fromOutput(OutputInterface $output, ?DatabaseTask $databaseTask = null): static
     {
         $value = $output->getValue();
-        $isFile = $value instanceof \SplFileObject;
+        $isFile = $value instanceof \SplFileObject && $value->isReadable();
 
         $model = new static(
             [
                 'output_class' => \get_class($output),
-                'output_value' => DatabaseTaskFacade::valueToString($output->getValue()),
+                'output_value' => $isFile ? '' : DatabaseTaskFacade::valueToString($value),
                 'is_file' => $isFile,
                 'expires_at' => $output->getExpiresAt(),
                 'batch_order' => $output instanceof BatchableOutput ? $output->getBatchOrder() : 0,
@@ -63,19 +63,11 @@ class DatabaseTaskOutput extends Model implements HasMedia
             $model->task()->associate($databaseTask);
         }
 
+        $isFile && $model->saved(static fn() => $model->addMedia($value->getRealPath())->toMediaCollection());
+
         $model->outputInstance = $output;
 
         return $model;
-    }
-
-    public function isExpired(): bool
-    {
-        return $this->expires_at?->isPast() ?? false;
-    }
-
-    public function isValid(): bool
-    {
-        return ! $this->isExpired();
     }
 
     /**
@@ -89,13 +81,13 @@ class DatabaseTaskOutput extends Model implements HasMedia
 
         // TODO try-catch
 
-        $isFile = $this->is_file && $this->file && \is_writable($filename = $this->file->getFilePath());
+        $isFile = $this->is_file && $this->file && \is_readable($filename = $this->file->getFilePath());
 
         if ($isFile && \is_a($this->output_class, FileOutput::class, true)) {
-            /** @var FileOutput @output */
+            /** @var FileOutput $output */
             $output = app($this->output_class, \compact('filename'));
         } else {
-            /** @var OutputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithOutput */
+            /** @var OutputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithOutput $output */
             $output = app($this->output_class);
 
             $output->value($this->output_value);
@@ -106,6 +98,18 @@ class DatabaseTaskOutput extends Model implements HasMedia
         }
 
         return $this->outputInstance = $output;
+    }
+
+    // --- Expiration Management ---
+
+    public function isExpired(): bool
+    {
+        return $this->expires_at?->isPast() ?? false;
+    }
+
+    public function isValid(): bool
+    {
+        return ! $this->isExpired();
     }
 
     // --- Relationships ---

@@ -14,14 +14,14 @@ use PHPTools\LaravelDatabaseTask\DatabaseTaskManager;
  * @template TaskModel of \PHPTools\LaravelDatabaseTask\Models\DatabaseTask
  * @template InputModel of \PHPTools\LaravelDatabaseTask\Models\DatabaseTaskInput
  * @template OutputModel of \PHPTools\LaravelDatabaseTask\Models\DatabaseTaskOutput
+ * @template T of \Illuminate\Database\Eloquent\Model
  *
- * @method static string resolveModelClass(string $modelClass)
- * @method static TaskModel resolveModel(string $modelClass)
+ * @method static class-string<T> resolveModelClass(class-string<T> $modelClass)
+ * @method static T resolveModel(class-string<T> $modelClass)
  * @method static InputModel fromInput(InputInterface $input, ?TaskModel $databaseTask = null)
  * @method static InputModel fromInputArray(array $input, int $batchOrder = 0, ?TaskModel $databaseTask = null)
  * @method static OutputModel fromOutput(OutputInterface $output, ?TaskModel $databaseTask = null)
  * @method static string valueToString(mixed $value)
- * @method static mixed stringToValue(string $string, \PHPTools\LaravelDatabaseTask\Enums\InputType $type)
  */
 class DatabaseTaskFacade extends Facade
 {

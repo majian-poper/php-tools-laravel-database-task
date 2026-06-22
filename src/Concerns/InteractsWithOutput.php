@@ -9,7 +9,6 @@ trait InteractsWithOutput
 {
     use Conditionable;
     use EvaluatesClosures;
-    use InteractsWithBatchable;
 
     protected null | string | \SplFileObject | \Closure $value = null;
 
@@ -19,7 +18,7 @@ trait InteractsWithOutput
 
     public function getValue(): string | \SplFileObject
     {
-        return $this->evaluate($this->value);
+        return $this->evaluate($this->value) ?? '';
     }
 
     public function value(mixed $value): self

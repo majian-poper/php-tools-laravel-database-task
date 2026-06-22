@@ -11,7 +11,6 @@ trait InteractsWithInput
 {
     use Conditionable;
     use EvaluatesClosures;
-    use InteractsWithBatchable;
 
     protected InputType $type = InputType::QUERY;
 

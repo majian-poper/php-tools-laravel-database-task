@@ -2,7 +2,6 @@
 
 namespace PHPTools\LaravelDatabaseTask;
 
-use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -83,24 +82,9 @@ class DatabaseTaskManager
             $value instanceof \SplFileObject => '',
             \is_string($value), \is_numeric($value) => (string) $value,
             \is_bool($value) => $value ? '1' : '0',
-            \is_iterable($value) => implode(',', \iterator_to_array($value)),
+            \is_iterable($value) => \implode(',', \iterator_to_array($value)),
             $value instanceof \DateTimeInterface => $value->format('Y-m-d H:i:s'),
             default => throw new \InvalidArgumentException('Unsupported value type.'),
-        };
-    }
-
-    /**
-     * @return null | bool | int | string | \DateTime | iterable
-     */
-    public function stringToValue(string $string, Enums\InputType $type): mixed
-    {
-        return match ($type) {
-            Enums\InputType::QUERY => $string ?: null,
-            Enums\InputType::NUMBER => \is_numeric($string) ? (int) $string : null,
-            Enums\InputType::SELECT => \explode(',', $string),
-            Enums\InputType::DATETIME => CarbonImmutable::parse($string),
-            Enums\InputType::BOOLEAN => \in_array($string, ['1', 'true', 'yes'], true),
-            default => throw new \InvalidArgumentException('Unsupported input type.'),
         };
     }
 }

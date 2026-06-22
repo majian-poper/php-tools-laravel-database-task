@@ -9,5 +9,5 @@ interface BatchableTaskInterface extends TaskInterface
      */
     public function getBatchableInputs(InputInterface ...$inputs): iterable;
 
-    public function mergeBatchableOutputs(OutputInterface ...$outputs): OutputInterface;
+    public function mergeBatchableOutputs(BatchableOutput ...$outputs): OutputInterface;
 }

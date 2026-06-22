@@ -2,26 +2,17 @@
 
 namespace PHPTools\LaravelDatabaseTask\Jobs;
 
-use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Queue\Middleware\Skip;
-use PHPTools\LaravelDatabaseTask\Contracts\BatchableTaskInterface;
+use PHPTools\LaravelDatabaseTask\Contracts\BatchableOutput;
 use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
-use PHPTools\LaravelDatabaseTask\Enums\TaskStatus;
 use PHPTools\LaravelDatabaseTask\Events;
-use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 
 class MergeBatchableTask implements ShouldQueue
 {
-    use Batchable;
-    use Concerns\WithDatabaseTask;
-    use Dispatchable;
+    use Concerns\WithBatchableTask;
     use Queueable;
-
-    public $timeout = 300; // 5 minutes
 
     public function __construct(DatabaseTask $databaseTask)
     {
@@ -33,50 +24,36 @@ class MergeBatchableTask implements ShouldQueue
         return \sprintf('%s.merge', $this->databaseTask->job_name);
     }
 
-    public function middleware(): array
-    {
-        return [Skip::unless($this->batching() && $this->isProcessing())];
-    }
-
     public function handle(): void
     {
         $databaseTask = $this->getDatabaseTask();
-        $task = $databaseTask->toTask();
+
+        Events\BatchableTaskMerging::dispatch($databaseTask);
 
         try {
-            if (! $task instanceof BatchableTaskInterface) {
-                throw new \RuntimeException('Task is not batchable.');
-            }
+            $task = $this->getBatchableTask();
 
-            $mergedOutput = $task->mergeBatchableOutputs(...$databaseTask->getBatchableOutputs());
+            $databaseTask->getConnection()->transaction(
+                fn() => $this->saveOutput(
+                    $databaseTask,
+                    $task->mergeBatchableOutputs(...$databaseTask->getBatchableOutputs())
+                )
+            );
         } catch (\Throwable $e) {
-            $this->batch()->cancel();
+            $this->markAsFailed($databaseTask, $e->getMessage());
 
-            $databaseTask->updateStatusFailed($e->getMessage());
-
-            return;
+            Events\BatchableTaskMergeFailed::dispatch($databaseTask, $e);
         }
-
-        $this->saveOutput($databaseTask, $mergedOutput);
     }
 
     protected function saveOutput(DatabaseTask $databaseTask, OutputInterface $mergedOutput): void
     {
-        $outputValue = $mergedOutput->getValue();
-
-        // Delete existing outputs for the non-batchable outputs (batch_order = 0)
-        $databaseTask->outputs()->get()->map->delete();
-
-        $databaseTaskOutput = DatabaseTaskFacade::fromOutput($mergedOutput, $databaseTask);
-
-        $databaseTaskOutput->save();
-
-        if ($outputValue instanceof \SplFileObject && $outputValue->isReadable()) {
-            $databaseTaskOutput->addMedia($outputValue->getRealPath())->toMediaCollection();
+        if ($mergedOutput instanceof BatchableOutput && $mergedOutput->getBatchOrder() !== 0) {
+            throw new \RuntimeException(__('database-task::tasks.errors.output_should_not_be_batchable'));
         }
 
-        $databaseTask->updateStatus(TaskStatus::PROCESSED, TaskStatus::PROCESSING);
+        $databaseTask->moveToProcessedStatus($mergedOutput);
 
-        Events\BatchableTaskMerged::dispatch($databaseTask);
+        Events\BatchableTaskMergeFinished::dispatch($databaseTask);
     }
 }

@@ -2,10 +2,12 @@
 
 namespace PHPTools\LaravelDatabaseTask\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use PHPTools\LaravelDatabaseTask\Contracts\BatchableInput;
 use PHPTools\LaravelDatabaseTask\Contracts\InputInterface;
+use PHPTools\LaravelDatabaseTask\Enums\InputType;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use Spatie\MediaLibrary\HasMedia;
 
@@ -40,8 +42,6 @@ class DatabaseTaskInput extends Model implements HasMedia
     ];
 
     protected ?InputInterface $inputInstance = null;
-
-    protected ?\SplFileObject $cacheFile = null;
 
     // --- DatabaseTask ---
 
@@ -118,7 +118,7 @@ class DatabaseTaskInput extends Model implements HasMedia
             ->when(
                 $this->is_file,
                 fn($input) => $input->asFile()->value(fn(): \SplFileObject => new \SplFileObject($this->file->getFilePath())),
-                fn($input) => $input->value(DatabaseTaskFacade::stringToValue($this->input_value, $input->getType()))
+                fn($input) => $input->value($this->stringToValue($this->input_value, $input->getType()))
             );
 
         if ($input instanceof BatchableInput && \method_exists($input, 'batchOrder')) {
@@ -136,5 +136,22 @@ class DatabaseTaskInput extends Model implements HasMedia
             DatabaseTaskFacade::resolveModelClass(DatabaseTask::class),
             'database_task_id'
         );
+    }
+
+    // --- Helpers ---
+
+    /**
+     * @return null | bool | int | string | \DateTime | iterable
+     */
+    protected function stringToValue(string $string, InputType $type): mixed
+    {
+        return match ($type) {
+            InputType::QUERY => $string ?: null,
+            InputType::NUMBER => \is_numeric($string) ? (int) $string : null,
+            InputType::SELECT => \explode(',', $string),
+            InputType::DATETIME => CarbonImmutable::parse($string),
+            InputType::BOOLEAN => \in_array($string, ['1', 'true', 'yes'], true),
+            default => throw new \InvalidArgumentException('Unsupported input type.'),
+        };
     }
 }
