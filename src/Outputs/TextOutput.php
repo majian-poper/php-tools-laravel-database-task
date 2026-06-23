@@ -3,9 +3,9 @@
 namespace PHPTools\LaravelDatabaseTask\Outputs;
 
 use PHPTools\LaravelDatabaseTask\Concerns;
-use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
+use PHPTools\LaravelDatabaseTask\Contracts;
 
-class TextOutput implements OutputInterface
+class TextOutput implements Contracts\OutputInterface
 {
     use Concerns\InteractsWithOutput;
 

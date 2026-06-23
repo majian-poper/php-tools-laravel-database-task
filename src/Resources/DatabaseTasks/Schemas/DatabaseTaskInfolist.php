@@ -37,14 +37,14 @@ class DatabaseTaskInfolist
             static::section()
                 ->schema(static::taskSectionSchema())
                 ->columns(2),
-            Infolists\Components\RepeatableEntry::make('inputs')
+            Infolists\Components\RepeatableEntry::make('normal_inputs')
                 ->label(__('database-task::model.database_task.inputs'))
                 ->schema(static::inputSectionSchema())
-                ->visible(static fn(DatabaseTask $record): bool => $record->inputs->isNotEmpty()),
-            Infolists\Components\RepeatableEntry::make('outputs')
+                ->visible(static fn(DatabaseTask $record): bool => $record->normal_inputs->isNotEmpty()),
+            Infolists\Components\RepeatableEntry::make('normal_outputs')
                 ->label(__('database-task::model.database_task.outputs'))
                 ->schema(static::outputSectionSchema())
-                ->visible(static fn(DatabaseTask $record): bool => $record->outputs->isNotEmpty()),
+                ->visible(static fn(DatabaseTask $record): bool => $record->normal_outputs->isNotEmpty()),
         ];
     }
 

@@ -4,17 +4,16 @@ namespace PHPTools\LaravelDatabaseTask\Jobs;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use PHPTools\LaravelDatabaseTask\Contracts\BatchableOutput;
-use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
+use PHPTools\LaravelDatabaseTask\Contracts;
 use PHPTools\LaravelDatabaseTask\Events;
-use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
+use PHPTools\LaravelDatabaseTask\Models;
 
 class MergeBatchableTask implements ShouldQueue
 {
-    use Concerns\WithBatchableTask;
+    use Concerns\WithTask;
     use Queueable;
 
-    public function __construct(DatabaseTask $databaseTask)
+    public function __construct(Models\DatabaseTask $databaseTask)
     {
         $this->setDatabaseTask($databaseTask);
     }
@@ -31,7 +30,11 @@ class MergeBatchableTask implements ShouldQueue
         Events\BatchableTaskMerging::dispatch($databaseTask);
 
         try {
-            $task = $this->getBatchableTask();
+            $task = $this->getTask();
+
+            if (! $task instanceof Contracts\BatchableTaskInterface) {
+                throw new \RuntimeException(__('database-task::tasks.errors.task_not_batchable'));
+            }
 
             $databaseTask->getConnection()->transaction(
                 fn() => $this->saveOutput(
@@ -39,6 +42,8 @@ class MergeBatchableTask implements ShouldQueue
                     $task->mergeBatchableOutputs(...$databaseTask->getBatchableOutputs())
                 )
             );
+
+            Events\BatchableTaskMergeFinished::dispatch($databaseTask);
         } catch (\Throwable $e) {
             $this->markAsFailed($databaseTask, $e->getMessage());
 
@@ -46,14 +51,12 @@ class MergeBatchableTask implements ShouldQueue
         }
     }
 
-    protected function saveOutput(DatabaseTask $databaseTask, OutputInterface $mergedOutput): void
+    protected function saveOutput(Models\DatabaseTask $databaseTask, Contracts\OutputInterface $mergedOutput): void
     {
-        if ($mergedOutput instanceof BatchableOutput && $mergedOutput->getBatchOrder() !== 0) {
+        if ($mergedOutput instanceof Contracts\BatchableOutput && $mergedOutput->getBatchOrder() !== 0) {
             throw new \RuntimeException(__('database-task::tasks.errors.output_should_not_be_batchable'));
         }
 
         $databaseTask->moveToProcessedStatus($mergedOutput);
-
-        Events\BatchableTaskMergeFinished::dispatch($databaseTask);
     }
 }

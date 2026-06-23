@@ -4,7 +4,6 @@ namespace PHPTools\LaravelDatabaseTask\Enums;
 
 enum TaskStatus: string
 {
-    use Concerns\HasFilamentOptions;
     use Concerns\HasLabel;
 
     case UNAPPLIED = 'unapplied';

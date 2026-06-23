@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
 use PHPTools\LaravelDatabaseTask\Contracts;
-use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
 use PHPTools\LaravelDatabaseTask\Enums;
 use PHPTools\LaravelDatabaseTask\Events;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
@@ -99,6 +98,7 @@ class DatabaseTask extends Model
         return $this->inputs()
             ->where('batch_order', 0)
             ->get()
+            ->load('file')
             ->map->toInput()
             ->whereInstanceOf(Contracts\InputInterface::class)
             ->all();
@@ -112,13 +112,13 @@ class DatabaseTask extends Model
     public function getInputsForBatch(int $batchOrder = 0): array
     {
         return $this->inputs()
-            ->where('batch_order', $batchOrder)
             ->where(
                 static fn(Builder $query): Builder => $query
                     ->where('batch_order', 0)
                     ->when($batchOrder > 0)->orWhere('batch_order', $batchOrder)
             )
             ->get()
+            ->load('file')
             ->map->toInput()
             ->whereInstanceOf(Contracts\InputInterface::class)
             ->all();
@@ -177,7 +177,7 @@ class DatabaseTask extends Model
         );
     }
 
-    public function moveToProcessedStatus(OutputInterface $output): bool
+    public function moveToProcessedStatus(Contracts\OutputInterface $output): bool
     {
         return $this->transactionCallback(
             fn(): bool => $this->moveToStatus(Enums\TaskStatus::PROCESSED) && $this->saveOutput($output)
@@ -253,8 +253,18 @@ class DatabaseTask extends Model
         return $this->hasMany(DatabaseTaskFacade::resolveModelClass(DatabaseTaskInput::class), 'database_task_id');
     }
 
+    public function normal_inputs(): HasMany
+    {
+        return $this->inputs()->where('batch_order', 0);
+    }
+
     public function outputs(): HasMany
     {
         return $this->hasMany(DatabaseTaskFacade::resolveModelClass(DatabaseTaskOutput::class), 'database_task_id');
+    }
+
+    public function normal_outputs(): HasMany
+    {
+        return $this->outputs()->where('batch_order', 0);
     }
 }

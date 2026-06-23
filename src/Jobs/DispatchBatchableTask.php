@@ -4,18 +4,17 @@ namespace PHPTools\LaravelDatabaseTask\Jobs;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use PHPTools\LaravelDatabaseTask\Contracts\BatchableInput;
+use PHPTools\LaravelDatabaseTask\Contracts;
 use PHPTools\LaravelDatabaseTask\Events;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
-use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
-use PHPTools\LaravelDatabaseTask\Models\DatabaseTaskInput;
+use PHPTools\LaravelDatabaseTask\Models;
 
 class DispatchBatchableTask implements ShouldQueue
 {
     use Concerns\WithBatchableTask;
     use Queueable;
 
-    public function __construct(DatabaseTask $databaseTask)
+    public function __construct(Models\DatabaseTask $databaseTask)
     {
         $this->setDatabaseTask($databaseTask);
     }
@@ -34,12 +33,22 @@ class DispatchBatchableTask implements ShouldQueue
         try {
             $task = $this->getBatchableTask();
 
-            $databaseTask->getConnection()->transaction(
-                fn() => $this->saveBatchableInputs(
-                    $databaseTask,
-                    $task->getBatchableInputs(...$databaseTask->getNonBatchableInputs())
-                )
+            [$batchInputValues, $jobs] = $this->parse(
+                $databaseTask,
+                $task->getBatchableInputs(...$databaseTask->getNonBatchableInputs())
             );
+
+            if (blank($jobs)) {
+                throw new \RuntimeException(__('database-task::tasks.errors.no_data'));
+            }
+
+            $databaseTask->getConnection()->transaction(
+                fn() => $this->saveBatchableInputs($databaseTask, $batchInputValues)
+            );
+
+            $this->batch()->add($jobs);
+
+            Events\BatchableTaskDispatchFinished::dispatch($databaseTask);
         } catch (\Throwable $e) {
             $this->markAsFailed($databaseTask, $e->getMessage());
 
@@ -47,14 +56,14 @@ class DispatchBatchableTask implements ShouldQueue
         }
     }
 
-    protected function saveBatchableInputs(DatabaseTask $databaseTask, iterable $batchableInputs): void
+    protected function parse(Models\DatabaseTask $databaseTask, iterable $batchableInputs): array
     {
         $batchableInputValues = [];
         $jobs = [];
 
         foreach ($batchableInputs as $batchInput) {
-            if ($batchInput instanceof BatchableInput) {
-                $batchableInputValues[] = DatabaseTaskFacade::resolveModel(DatabaseTaskInput::class)
+            if ($batchInput instanceof Contracts\BatchableInput) {
+                $batchableInputValues[] = DatabaseTaskFacade::resolveModel(Models\DatabaseTaskInput::class)
                     ->fromInput($batchInput, $databaseTask)
                     ->updateTimestamps()
                     ->getAttributes();
@@ -63,16 +72,14 @@ class DispatchBatchableTask implements ShouldQueue
             }
         }
 
-        if (blank($jobs)) {
-            throw new \RuntimeException(__('database-task::tasks.errors.no_data'));
-        }
+        return [$batchableInputValues, $jobs];
+    }
 
+    protected function saveBatchableInputs(Models\DatabaseTask $databaseTask, array $batchableInputValues): void
+    {
         $databaseTask->outputs()->where('batch_order', '>', 0)->delete();
         $databaseTask->inputs()->where('batch_order', '>', 0)->delete();
+
         $databaseTask->inputs()->insert($batchableInputValues);
-
-        $this->batch()->add($jobs);
-
-        Events\BatchableTaskDispatchFinished::dispatch($databaseTask);
     }
 }

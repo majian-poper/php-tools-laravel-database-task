@@ -5,9 +5,8 @@ namespace PHPTools\LaravelDatabaseTask\Models;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use PHPTools\LaravelDatabaseTask\Contracts\BatchableInput;
-use PHPTools\LaravelDatabaseTask\Contracts\InputInterface;
-use PHPTools\LaravelDatabaseTask\Enums\InputType;
+use PHPTools\LaravelDatabaseTask\Contracts;
+use PHPTools\LaravelDatabaseTask\Enums;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use Spatie\MediaLibrary\HasMedia;
 
@@ -41,7 +40,7 @@ class DatabaseTaskInput extends Model implements HasMedia
         'batch_order',
     ];
 
-    protected ?InputInterface $inputInstance = null;
+    protected ?Contracts\InputInterface $inputInstance = null;
 
     // --- DatabaseTask ---
 
@@ -58,11 +57,11 @@ class DatabaseTaskInput extends Model implements HasMedia
             return null;
         }
 
-        if (! \class_exists($inputClass) || ! \is_subclass_of($inputClass, InputInterface::class)) {
+        if (! \class_exists($inputClass) || ! \is_subclass_of($inputClass, Contracts\InputInterface::class)) {
             return null;
         }
 
-        $model = new static(
+        $model = static::query()->make(
             [
                 'input_class' => $inputClass,
                 'input_value' => DatabaseTaskFacade::valueToString($inputValue),
@@ -79,15 +78,15 @@ class DatabaseTaskInput extends Model implements HasMedia
         return $model;
     }
 
-    public static function fromInput(InputInterface $input, ?DatabaseTask $databaseTask = null): static
+    public static function fromInput(Contracts\InputInterface $input, ?DatabaseTask $databaseTask = null): static
     {
-        $model = new static(
+        $model = static::query()->make(
             [
                 'input_class' => \get_class($input),
                 'input_value' => DatabaseTaskFacade::valueToString($input->getValue()),
                 'is_file' => false, // TODO: 支持 file 格式
                 'is_excluded' => $input->isExcluded(),
-                'batch_order' => $input instanceof BatchableInput ? $input->getBatchOrder() : 0,
+                'batch_order' => $input instanceof Contracts\BatchableInput ? $input->getBatchOrder() : 0,
             ]
         );
 
@@ -101,9 +100,9 @@ class DatabaseTaskInput extends Model implements HasMedia
     }
 
     /**
-     * @return InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput
+     * @return Contracts\InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput
      */
-    public function toInput(): InputInterface
+    public function toInput(): Contracts\InputInterface
     {
         if (isset($this->inputInstance)) {
             return $this->inputInstance;
@@ -111,17 +110,20 @@ class DatabaseTaskInput extends Model implements HasMedia
 
         // TODO try-catch
 
-        /** @var InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput */
+        $isFile = $this->is_file && $this->file;
+
+        /** @var Contracts\InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput */
         $input = app($this->input_class);
 
-        $input->excluded($this->is_excluded)
-            ->when(
-                $this->is_file,
-                fn($input) => $input->asFile()->value(fn(): \SplFileObject => new \SplFileObject($this->file->getFilePath())),
-                fn($input) => $input->value($this->stringToValue($this->input_value, $input->getType()))
-            );
+        $input->excluded($this->is_excluded);
 
-        if ($input instanceof BatchableInput && \method_exists($input, 'batchOrder')) {
+        if ($isFile) {
+            $input->asFile()->value($this->file->toTempFileObject(...));
+        } else {
+            $input->value($this->stringToValue($this->input_value, $input->getType()));
+        }
+
+        if ($input instanceof Contracts\BatchableInput && \method_exists($input, 'batchOrder')) {
             $input->batchOrder($this->batch_order);
         }
 
@@ -143,14 +145,14 @@ class DatabaseTaskInput extends Model implements HasMedia
     /**
      * @return null | bool | int | string | \DateTime | iterable
      */
-    protected function stringToValue(string $string, InputType $type): mixed
+    protected function stringToValue(string $string, Enums\InputType $type): mixed
     {
         return match ($type) {
-            InputType::QUERY => $string ?: null,
-            InputType::NUMBER => \is_numeric($string) ? (int) $string : null,
-            InputType::SELECT => \explode(',', $string),
-            InputType::DATETIME => CarbonImmutable::parse($string),
-            InputType::BOOLEAN => \in_array($string, ['1', 'true', 'yes'], true),
+            Enums\InputType::QUERY => $string ?: null,
+            Enums\InputType::NUMBER => \is_numeric($string) ? (int) $string : null,
+            Enums\InputType::SELECT => \explode(',', $string),
+            Enums\InputType::DATETIME => CarbonImmutable::parse($string),
+            Enums\InputType::BOOLEAN => \in_array($string, ['1', 'true', 'yes'], true),
             default => throw new \InvalidArgumentException('Unsupported input type.'),
         };
     }

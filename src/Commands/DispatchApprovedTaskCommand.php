@@ -2,7 +2,6 @@
 
 namespace PHPTools\LaravelDatabaseTask\Commands;
 
-use Illuminate\Bus\Batch;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Artisan;
@@ -12,7 +11,7 @@ use PHPTools\LaravelDatabaseTask\Enums\TaskStatus;
 use PHPTools\LaravelDatabaseTask\Events;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Jobs;
-use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
+use PHPTools\LaravelDatabaseTask\Models;
 
 class DispatchApprovedTaskCommand extends Command
 {
@@ -23,7 +22,7 @@ class DispatchApprovedTaskCommand extends Command
     public function handle()
     {
         /** @var \Illuminate\Database\Eloquent\Builder $query */
-        $query = DatabaseTaskFacade::resolveModel(DatabaseTask::class)
+        $query = DatabaseTaskFacade::resolveModel(Models\DatabaseTask::class)
             ->newQuery()
             ->where('status', TaskStatus::APPROVED)
             ->where(
@@ -42,7 +41,7 @@ class DispatchApprovedTaskCommand extends Command
         }
     }
 
-    protected function dispatchJob(DatabaseTask $databaseTask): void
+    protected function dispatchJob(Models\DatabaseTask $databaseTask): void
     {
         if (blank($task = $databaseTask->toTask())) {
             $this->dispatchFailed($databaseTask, __('database-task::tasks.errors.task_class_not_found'));
@@ -67,21 +66,20 @@ class DispatchApprovedTaskCommand extends Command
         Events\TaskDispatchFinished::dispatch($databaseTask);
     }
 
-    protected function dispatchBatchable(DatabaseTask $databaseTask): void
+    protected function dispatchBatchable(Models\DatabaseTask $databaseTask): void
     {
-        Bus::batch([])
+        Bus::batch(new Jobs\DispatchBatchableTask($databaseTask))
             ->name($databaseTask->job_name)
-            ->before(fn(Batch $batch) => dispatch(new Jobs\DispatchBatchableTask($databaseTask)->withBatchId($batch->id)))
-            ->then(fn(Batch $batch) => dispatch((new Jobs\MergeBatchableTask($databaseTask))->withBatchId($batch->id)))
+            ->then(static fn() => Jobs\MergeBatchableTask::dispatch($databaseTask))
             ->dispatch();
     }
 
-    protected function dispatchNonBatchable(DatabaseTask $databaseTask): void
+    protected function dispatchNonBatchable(Models\DatabaseTask $databaseTask): void
     {
         Jobs\RunDatabaseTask::dispatch($databaseTask);
     }
 
-    protected function dispatchFailed(DatabaseTask $databaseTask, string $reason): void
+    protected function dispatchFailed(Models\DatabaseTask $databaseTask, string $reason): void
     {
         $databaseTask->moveToFailedStatus($reason);
 

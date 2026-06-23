@@ -3,7 +3,7 @@
 namespace PHPTools\LaravelDatabaseTask\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use PHPTools\LaravelDatabaseTask\Contracts\TaskInterface;
+use PHPTools\LaravelDatabaseTask\Contracts;
 use Sushi\Sushi;
 
 /**
@@ -24,7 +24,7 @@ class DatabaseTaskClass extends Model
                         return null;
                     }
 
-                    if (! \is_subclass_of($taskClass, TaskInterface::class)) {
+                    if (! \is_subclass_of($taskClass, Contracts\TaskInterface::class)) {
                         return null;
                     }
 

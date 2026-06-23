@@ -3,13 +3,13 @@
 namespace PHPTools\LaravelDatabaseTask\Jobs\Concerns;
 
 use Illuminate\Queue\Middleware\Skip;
-use PHPTools\LaravelDatabaseTask\Contracts\TaskInterface;
+use PHPTools\LaravelDatabaseTask\Contracts;
 use PHPTools\LaravelDatabaseTask\Enums\TaskStatus;
-use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
+use PHPTools\LaravelDatabaseTask\Models;
 
 trait WithTask
 {
-    public readonly DatabaseTask $databaseTask;
+    public readonly Models\DatabaseTask $databaseTask;
 
     public $timeout = 300; // 5 minutes
 
@@ -18,12 +18,12 @@ trait WithTask
         return [Skip::when($this->shouldSkip())];
     }
 
-    public function setDatabaseTask(DatabaseTask $databaseTask): void
+    public function setDatabaseTask(Models\DatabaseTask $databaseTask): void
     {
         $this->databaseTask = $databaseTask;
     }
 
-    public function getDatabaseTask(): DatabaseTask
+    public function getDatabaseTask(): Models\DatabaseTask
     {
         return $this->databaseTask;
     }
@@ -33,11 +33,11 @@ trait WithTask
         return $this->databaseTask->status === TaskStatus::PROCESSING;
     }
 
-    public function getTask(): ?TaskInterface
+    public function getTask(): ?Contracts\TaskInterface
     {
         $task = $this->databaseTask->toTask();
 
-        if (! $task instanceof TaskInterface) {
+        if (! $task instanceof Contracts\TaskInterface) {
             throw new \RuntimeException(
                 __(
                     'database-task::tasks.errors.task_class_not_found',
@@ -49,7 +49,7 @@ trait WithTask
         return $task;
     }
 
-    protected function markAsFailed(DatabaseTask $databaseTask, string $reason): void
+    protected function markAsFailed(Models\DatabaseTask $databaseTask, string $reason): void
     {
         $databaseTask->moveToFailedStatus($reason);
     }

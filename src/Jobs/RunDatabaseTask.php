@@ -5,17 +5,16 @@ namespace PHPTools\LaravelDatabaseTask\Jobs;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\Skip;
-use PHPTools\LaravelDatabaseTask\Contracts\BatchableOutput;
-use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
+use PHPTools\LaravelDatabaseTask\Contracts;
 use PHPTools\LaravelDatabaseTask\Events;
-use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
+use PHPTools\LaravelDatabaseTask\Models;
 
 class RunDatabaseTask implements ShouldQueue
 {
     use Concerns\WithTask;
     use Queueable;
 
-    public function __construct(DatabaseTask $databaseTask)
+    public function __construct(Models\DatabaseTask $databaseTask)
     {
         $this->setDatabaseTask($databaseTask);
     }
@@ -45,6 +44,8 @@ class RunDatabaseTask implements ShouldQueue
                     $task->run(...$databaseTask->getNonBatchableInputs())
                 )
             );
+
+            Events\TaskRunFinished::dispatch($databaseTask);
         } catch (\Throwable $e) {
             $this->markAsFailed($databaseTask, $e->getMessage());
 
@@ -52,14 +53,12 @@ class RunDatabaseTask implements ShouldQueue
         }
     }
 
-    protected function saveOutput(DatabaseTask $databaseTask, OutputInterface $mergedOutput): void
+    protected function saveOutput(Models\DatabaseTask $databaseTask, Contracts\OutputInterface $mergedOutput): void
     {
-        if ($mergedOutput instanceof BatchableOutput && $mergedOutput->getBatchOrder() !== 0) {
+        if ($mergedOutput instanceof Contracts\BatchableOutput && $mergedOutput->getBatchOrder() !== 0) {
             throw new \RuntimeException(__('database-task::tasks.errors.output_should_not_be_batchable'));
         }
 
         $databaseTask->moveToProcessedStatus($mergedOutput);
-
-        Events\TaskRunFinished::dispatch($databaseTask);
     }
 }

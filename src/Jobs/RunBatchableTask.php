@@ -4,17 +4,16 @@ namespace PHPTools\LaravelDatabaseTask\Jobs;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use PHPTools\LaravelDatabaseTask\Contracts\BatchableOutput;
-use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
+use PHPTools\LaravelDatabaseTask\Contracts;
 use PHPTools\LaravelDatabaseTask\Events;
-use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
+use PHPTools\LaravelDatabaseTask\Models;
 
 class RunBatchableTask implements ShouldQueue
 {
     use Concerns\WithBatchableTask;
     use Queueable;
 
-    public function __construct(DatabaseTask $databaseTask, public int $batchOrder = 0)
+    public function __construct(Models\DatabaseTask $databaseTask, public int $batchOrder = 0)
     {
         $this->setDatabaseTask($databaseTask);
     }
@@ -39,6 +38,8 @@ class RunBatchableTask implements ShouldQueue
                     $task->run(...$databaseTask->getInputsForBatch($this->batchOrder))
                 )
             );
+
+            Events\BatchableTaskRunFinished::dispatch($databaseTask, $this->batchOrder);
         } catch (\Throwable $e) {
             $this->markAsFailed($databaseTask, $e->getMessage());
 
@@ -46,9 +47,9 @@ class RunBatchableTask implements ShouldQueue
         }
     }
 
-    protected function saveBatchableOutput(DatabaseTask $databaseTask, OutputInterface $output): void
+    protected function saveBatchableOutput(Models\DatabaseTask $databaseTask, Contracts\OutputInterface $output): void
     {
-        if (! $output instanceof BatchableOutput) {
+        if (! $output instanceof Contracts\BatchableOutput) {
             throw new \RuntimeException(__('database-task::tasks.errors.output_not_batchable'));
         }
 
@@ -57,7 +58,5 @@ class RunBatchableTask implements ShouldQueue
         }
 
         $databaseTask->saveOutput($output);
-
-        Events\BatchableTaskRunFinished::dispatch($databaseTask, $this->batchOrder);
     }
 }

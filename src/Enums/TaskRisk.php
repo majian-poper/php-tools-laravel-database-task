@@ -4,7 +4,6 @@ namespace PHPTools\LaravelDatabaseTask\Enums;
 
 enum TaskRisk: string
 {
-    use Concerns\HasFilamentOptions;
     use Concerns\HasLabel;
 
     case LOW = 'low';

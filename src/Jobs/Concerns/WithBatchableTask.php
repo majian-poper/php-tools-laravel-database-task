@@ -3,7 +3,7 @@
 namespace PHPTools\LaravelDatabaseTask\Jobs\Concerns;
 
 use Illuminate\Bus\Batchable;
-use PHPTools\LaravelDatabaseTask\Contracts\BatchableTaskInterface;
+use PHPTools\LaravelDatabaseTask\Contracts;
 use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
 
 trait WithBatchableTask
@@ -14,11 +14,11 @@ trait WithBatchableTask
         markAsFailed as baseMarkAsFailed;
     }
 
-    public function getBatchableTask(): ?BatchableTaskInterface
+    public function getBatchableTask(): ?Contracts\BatchableTaskInterface
     {
         $task = $this->getTask();
 
-        if (! $task instanceof BatchableTaskInterface) {
+        if (! $task instanceof Contracts\BatchableTaskInterface) {
             throw new \RuntimeException(__('database-task::tasks.errors.task_not_batchable'));
         }
 

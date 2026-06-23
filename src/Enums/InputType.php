@@ -4,7 +4,6 @@ namespace PHPTools\LaravelDatabaseTask\Enums;
 
 enum InputType: string
 {
-    use Concerns\HasFilamentOptions;
     use Concerns\HasLabel;
 
     case QUERY = 'query';

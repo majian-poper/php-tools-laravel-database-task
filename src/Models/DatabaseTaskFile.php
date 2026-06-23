@@ -6,18 +6,20 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class DatabaseTaskFile extends Media
 {
-    public function getFilePath(): string
+    public function toTempFileObject(): \SplTempFileObject
     {
-        try {
-            $bytes = \file_put_contents($tmp = \tempnam(\sys_get_temp_dir(), config('app.name') . '-'), $this->stream());
+        $tempFile = new \SplTempFileObject;
 
-            if ($bytes === false) {
-                throw new \RuntimeException('Cannot write temp file.');
-            }
-        } catch (\Throwable $e) {
-            throw new \RuntimeException($e->getMessage());
+        $resource = $this->stream();
+
+        while (! \feof($resource)) {
+            $tempFile->fwrite(\fread($resource, 8192));
         }
 
-        return $tmp;
+        \fclose($resource);
+
+        $tempFile->rewind();
+
+        return $tempFile;
     }
 }

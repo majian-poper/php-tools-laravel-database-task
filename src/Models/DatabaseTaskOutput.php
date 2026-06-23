@@ -4,8 +4,7 @@ namespace PHPTools\LaravelDatabaseTask\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use PHPTools\LaravelDatabaseTask\Contracts\BatchableOutput;
-use PHPTools\LaravelDatabaseTask\Contracts\OutputInterface;
+use PHPTools\LaravelDatabaseTask\Contracts;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Outputs\FileOutput;
 use Spatie\MediaLibrary\HasMedia;
@@ -42,20 +41,20 @@ class DatabaseTaskOutput extends Model implements HasMedia
         'expires_at',
     ];
 
-    protected ?OutputInterface $outputInstance = null;
+    protected ?Contracts\OutputInterface $outputInstance = null;
 
-    public static function fromOutput(OutputInterface $output, ?DatabaseTask $databaseTask = null): static
+    public static function fromOutput(Contracts\OutputInterface $output, ?DatabaseTask $databaseTask = null): static
     {
         $value = $output->getValue();
         $isFile = $value instanceof \SplFileObject && $value->isReadable();
 
-        $model = new static(
+        $model = static::query()->make(
             [
                 'output_class' => \get_class($output),
                 'output_value' => $isFile ? '' : DatabaseTaskFacade::valueToString($value),
                 'is_file' => $isFile,
                 'expires_at' => $output->getExpiresAt(),
-                'batch_order' => $output instanceof BatchableOutput ? $output->getBatchOrder() : 0,
+                'batch_order' => $output instanceof Contracts\BatchableOutput ? $output->getBatchOrder() : 0,
             ]
         );
 
@@ -73,7 +72,7 @@ class DatabaseTaskOutput extends Model implements HasMedia
     /**
      * @return OutputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithOutput
      */
-    public function toOutput(): OutputInterface
+    public function toOutput(): Contracts\OutputInterface
     {
         if (isset($this->outputInstance)) {
             return $this->outputInstance;
@@ -81,19 +80,21 @@ class DatabaseTaskOutput extends Model implements HasMedia
 
         // TODO try-catch
 
-        $isFile = $this->is_file && $this->file && \is_readable($filename = $this->file->getFilePath());
+        $isFile = $this->is_file && $this->file;
 
         if ($isFile && \is_a($this->output_class, FileOutput::class, true)) {
             /** @var FileOutput $output */
-            $output = app($this->output_class, \compact('filename'));
+            $output = app($this->output_class, ['filename' => \tempnam(\sys_get_temp_dir(), 'database-task-output-')]);
+
+            $output->value($this->file->toTempFileObject(...));
         } else {
-            /** @var OutputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithOutput $output */
+            /** @var Contracts\OutputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithOutput $output */
             $output = app($this->output_class);
 
             $output->value($this->output_value);
         }
 
-        if ($output instanceof BatchableOutput && \method_exists($output, 'batchOrder')) {
+        if ($output instanceof Contracts\BatchableOutput && \method_exists($output, 'batchOrder')) {
             $output->batchOrder($this->batch_order);
         }
 
