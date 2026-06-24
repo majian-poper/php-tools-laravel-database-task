@@ -46,10 +46,7 @@ class DispatchBatchableTask implements ShouldQueue
             $jobs = $batchableInputs
                 ->map(fn(Contracts\BatchableInput $batchInput): int => $batchInput->getBatchOrder())
                 ->unique()
-                ->map(
-                    static fn(int $batchOrder): RunBatchableTask => (new RunBatchableTask($databaseTask, $batchOrder))
-                        ->delay(now()->addSeconds($batchOrder))
-                );
+                ->map(static fn(int $batchOrder): RunBatchableTask => (new RunBatchableTask($databaseTask, $batchOrder)));
 
             if ($jobs->isEmpty()) {
                 throw new \RuntimeException(__('database-task::tasks.errors.no_data'));

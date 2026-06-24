@@ -7,15 +7,10 @@ use PHPTools\LaravelDatabaseTask\Contracts;
 
 class TextOutput implements Contracts\OutputInterface
 {
-    use Concerns\InteractsWithOutput;
+    use Concerns\Output\AsTextOutput;
 
     public function __construct(string $text = '')
     {
         $this->value($text);
-    }
-
-    public function getValue(): string
-    {
-        return (string) $this->evaluate($this->value);
     }
 }

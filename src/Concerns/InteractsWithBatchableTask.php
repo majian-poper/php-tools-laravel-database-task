@@ -44,7 +44,7 @@ trait InteractsWithBatchableTask
 
         $validInputs = collect();
 
-        /** @var Contracts\InputInterface|\PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput $input */
+        /** @var Contracts\InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput $input */
         foreach ($supportInputs as $name => $input) {
             if ($input->isRequired() && ! $inputs->has($name)) {
                 throw new \InvalidArgumentException(__('validation.required', ['attribute' => $input->getLabel()]));

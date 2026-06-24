@@ -74,10 +74,10 @@ class DatabaseTaskManager
     {
         return match (true) {
             \is_null($value) => '',
-            $value instanceof \SplFileObject => '',
             \is_string($value), \is_numeric($value) => (string) $value,
             \is_bool($value) => $value ? '1' : '0',
             \is_iterable($value) => \implode(',', \iterator_to_array($value)),
+            $value instanceof \SplFileObject => '',
             $value instanceof \DateTimeInterface => $value->format('Y-m-d H:i:s'),
             default => throw new \InvalidArgumentException('Unsupported value type.'),
         };

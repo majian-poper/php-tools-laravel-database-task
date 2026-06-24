@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use PHPTools\LaravelDatabaseTask\Contracts;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
 use PHPTools\LaravelDatabaseTask\Outputs\FileOutput;
+use PHPTools\LaravelDatabaseTask\Outputs\NullOutput;
+use PHPTools\LaravelDatabaseTask\Outputs\TextOutput;
 use Spatie\MediaLibrary\HasMedia;
 
 /**
@@ -66,14 +68,19 @@ class DatabaseTaskOutput extends Model implements HasMedia
     {
         $value = $output->getValue();
         $isFile = $value instanceof \SplFileObject && $value->isReadable();
+        $batchOrder = $output instanceof Contracts\BatchableOutput ? $output->getBatchOrder() : 0;
+
+        if ($isFile && $value->getSize() === 0) {
+            return static::fromOutput(NullOutput::create()->batchOrder($batchOrder), $databaseTask);
+        }
 
         $model = static::query()->make(
             [
                 'output_class' => \get_class($output),
                 'output_value' => $isFile ? '' : DatabaseTaskFacade::valueToString($value),
                 'is_file' => $isFile,
+                'batch_order' => $batchOrder,
                 'expires_at' => $output->getExpiresAt(),
-                'batch_order' => $output instanceof Contracts\BatchableOutput ? $output->getBatchOrder() : 0,
             ]
         );
 
@@ -87,9 +94,6 @@ class DatabaseTaskOutput extends Model implements HasMedia
         return $model;
     }
 
-    /**
-     * @return Contracts\OutputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithOutput
-     */
     public function toOutput(): Contracts\OutputInterface
     {
         if (isset($this->outputInstance)) {
@@ -98,18 +102,19 @@ class DatabaseTaskOutput extends Model implements HasMedia
 
         // TODO try-catch
 
-        $isFile = $this->is_file && $this->file;
+        $isFile = $this->is_file && \is_a($this->output_class, FileOutput::class, true) && $this->file;
+        $parameters = $isFile ? ['filename' => \tempnam(\sys_get_temp_dir(), 'database-task-output-')] : [];
 
-        if ($isFile && \is_a($this->output_class, FileOutput::class, true)) {
-            /** @var FileOutput $output */
-            $output = app($this->output_class, ['filename' => \tempnam(\sys_get_temp_dir(), 'database-task-output-')]);
+        $output = app($this->output_class, $parameters);
 
-            $output->value($this->file->toTempFileObject(...));
-        } else {
-            /** @var Contracts\OutputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithOutput $output */
-            $output = app($this->output_class);
-
-            $output->value($this->output_value);
+        if (\method_exists($output, 'value')) {
+            $output->value(
+                match (true) {
+                    $isFile => $this->file->toTempFileObject(...),
+                    \is_a($output, TextOutput::class) => $this->output_value,
+                    default => null,
+                }
+            );
         }
 
         if ($output instanceof Contracts\BatchableOutput && \method_exists($output, 'batchOrder')) {

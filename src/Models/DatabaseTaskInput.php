@@ -99,9 +99,6 @@ class DatabaseTaskInput extends Model implements HasMedia
         return $model;
     }
 
-    /**
-     * @return Contracts\InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput
-     */
     public function toInput(): Contracts\InputInterface
     {
         if (isset($this->inputInstance)) {
@@ -112,15 +109,24 @@ class DatabaseTaskInput extends Model implements HasMedia
 
         $isFile = $this->is_file && $this->file;
 
-        /** @var Contracts\InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput */
+        /** @var Contracts\InputInterface $input */
         $input = app($this->input_class);
 
-        $input->excluded($this->is_excluded);
+        if (\method_exists($input, 'excluded')) {
+            $input->excluded($this->is_excluded);
+        }
 
-        if ($isFile) {
-            $input->asFile()->value($this->file->toTempFileObject(...));
-        } else {
-            $input->value($this->stringToValue($this->input_value, $input->getType()));
+        if ($isFile && \method_exists($input, 'asFile')) {
+            $input->asFile();
+        }
+
+        if (\method_exists($input, 'value')) {
+            $input->value(
+                match (true) {
+                    $isFile => $this->file->toTempFileObject(...),
+                    default => $this->stringToValue($this->input_value, $input->getType()),
+                }
+            );
         }
 
         if ($input instanceof Contracts\BatchableInput && \method_exists($input, 'batchOrder')) {
