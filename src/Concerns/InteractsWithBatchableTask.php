@@ -11,7 +11,7 @@ use PHPTools\LaravelDatabaseTask\Contracts;
 trait InteractsWithBatchableTask
 {
     use InteractsWithTask {
-        filterInputs as baseFilterInputs;
+        filterInputs as interactsWithTaskFilterInputs;
     }
 
     public function getBatchableInputs(Contracts\InputInterface ...$inputs): iterable
@@ -32,28 +32,24 @@ trait InteractsWithBatchableTask
 
     protected function filterInputs(Contracts\InputInterface ...$inputs): Collection
     {
-        $getBatchorder = static fn(Contracts\InputInterface $input): int => $input instanceof Contracts\BatchableInput
-            ? $input->getBatchOrder()
-            : 0;
+        $supportInputs = collect(static::getSupportInputs())->keyBy->getName();
+
+        $getBatchorder = static function (Contracts\InputInterface $input): int {
+            return $input instanceof Contracts\BatchableInput ? $input->getBatchOrder() : 0;
+        };
 
         $inputs = collect($inputs)
             ->groupBy->getName()
             ->map(static fn(Collection $inputs): Contracts\InputInterface => $inputs->sortByDesc($getBatchorder)->first());
 
-        $supportInputs = collect(static::getSupportInputs())->keyBy->getName();
+        $filteredInputs = collect();
 
-        $validInputs = collect();
-
-        /** @var Contracts\InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput $input */
-        foreach ($supportInputs as $name => $input) {
-            if ($input->isRequired() && ! $inputs->has($name)) {
-                throw new \InvalidArgumentException(__('validation.required', ['attribute' => $input->getLabel()]));
-            }
-
-            $validInputs[$name] = $inputs->get($name);
+        /** @var Contracts\InputInterface $input */
+        foreach ($supportInputs as $name => $_) {
+            $filteredInputs[$name] = $inputs->pull($name);
         }
 
-        return $validInputs;
+        return $filteredInputs;
     }
 
     abstract protected function handleGetBatchableInputs(Collection $filteredInputs): iterable;

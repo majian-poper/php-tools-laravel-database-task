@@ -41,19 +41,16 @@ trait InteractsWithTask
     protected function filterInputs(Contracts\InputInterface ...$inputs): Collection
     {
         $supportInputs = collect(static::getSupportInputs())->keyBy->getName();
+
         $inputs = collect($inputs)->keyBy->getName();
-        $validInputs = collect();
 
-        /** @var Contracts\InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput $input */
-        foreach ($supportInputs as $name => $input) {
-            if ($input->isRequired() && ! $inputs->has($name)) {
-                throw new \InvalidArgumentException(__('validation.required', ['attribute' => $input->getLabel()]));
-            }
+        $filteredInputs = collect();
 
-            $validInputs[$name] = $inputs->get($name);
+        foreach ($supportInputs as $name => $_) {
+            $filteredInputs[$name] = $inputs->pull($name);
         }
 
-        return $validInputs;
+        return $filteredInputs;
     }
 
     abstract protected function handlePreview(Collection $inputs): Htmlable;
