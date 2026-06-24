@@ -36,12 +36,13 @@ class MergeBatchableTask implements ShouldQueue
                 throw new \RuntimeException(__('database-task::tasks.errors.task_not_batchable'));
             }
 
-            $databaseTask->getConnection()->transaction(
-                fn() => $this->saveOutput(
-                    $databaseTask,
-                    $task->mergeBatchableOutputs(...$databaseTask->getBatchableOutputs())
-                )
-            );
+            $mergedOutput = $task->mergeBatchableOutputs(...$databaseTask->getBatchableOutputs());
+
+            if ($mergedOutput instanceof Contracts\BatchableOutput && $mergedOutput->getBatchOrder() !== 0) {
+                throw new \RuntimeException(__('database-task::tasks.errors.output_should_not_be_batchable'));
+            }
+
+            $databaseTask->moveToProcessedStatus($mergedOutput);
 
             Events\BatchableTaskMergeFinished::dispatch($databaseTask);
         } catch (\Throwable $e) {
@@ -49,14 +50,5 @@ class MergeBatchableTask implements ShouldQueue
 
             Events\BatchableTaskMergeFailed::dispatch($databaseTask, $e);
         }
-    }
-
-    protected function saveOutput(Models\DatabaseTask $databaseTask, Contracts\OutputInterface $mergedOutput): void
-    {
-        if ($mergedOutput instanceof Contracts\BatchableOutput && $mergedOutput->getBatchOrder() !== 0) {
-            throw new \RuntimeException(__('database-task::tasks.errors.output_should_not_be_batchable'));
-        }
-
-        $databaseTask->moveToProcessedStatus($mergedOutput);
     }
 }

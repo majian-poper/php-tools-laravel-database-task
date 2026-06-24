@@ -43,6 +43,25 @@ class DatabaseTaskOutput extends Model implements HasMedia
 
     protected ?Contracts\OutputInterface $outputInstance = null;
 
+    protected ?\SplFileObject $cachedFile = null;
+
+    public static function booted(): void
+    {
+        static::created(
+            static function (self $model): void {
+                if (! $model->is_file) {
+                    return;
+                }
+
+                if (! $model->cachedFile?->isReadable()) {
+                    return;
+                }
+
+                $model->addMedia($model->cachedFile->getRealPath())->toMediaCollection();
+            }
+        );
+    }
+
     public static function fromOutput(Contracts\OutputInterface $output, ?DatabaseTask $databaseTask = null): static
     {
         $value = $output->getValue();
@@ -62,15 +81,14 @@ class DatabaseTaskOutput extends Model implements HasMedia
             $model->task()->associate($databaseTask);
         }
 
-        $isFile && $model->saved(static fn() => $model->addMedia($value->getRealPath())->toMediaCollection());
-
         $model->outputInstance = $output;
+        $model->cachedFile = $isFile ? $value : null;
 
         return $model;
     }
 
     /**
-     * @return OutputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithOutput
+     * @return Contracts\OutputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithOutput
      */
     public function toOutput(): Contracts\OutputInterface
     {
@@ -117,9 +135,6 @@ class DatabaseTaskOutput extends Model implements HasMedia
 
     public function task(): BelongsTo
     {
-        return $this->belongsTo(
-            DatabaseTaskFacade::resolveModelClass(DatabaseTask::class),
-            'database_task_id'
-        );
+        return $this->belongsTo(DatabaseTaskFacade::resolveModelClass(DatabaseTask::class), 'database_task_id');
     }
 }

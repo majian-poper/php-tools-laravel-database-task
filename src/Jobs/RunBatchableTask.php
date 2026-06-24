@@ -32,12 +32,17 @@ class RunBatchableTask implements ShouldQueue
         try {
             $task = $this->getBatchableTask();
 
-            $databaseTask->getConnection()->transaction(
-                fn() => $this->saveBatchableOutput(
-                    $databaseTask,
-                    $task->run(...$databaseTask->getInputsForBatch($this->batchOrder))
-                )
-            );
+            $output = $task->run(...$databaseTask->getInputsForBatch($this->batchOrder));
+
+            if (! $output instanceof Contracts\BatchableOutput) {
+                throw new \RuntimeException(__('database-task::tasks.errors.output_not_batchable'));
+            }
+
+            if ($output->getBatchOrder() !== $this->batchOrder) {
+                throw new \RuntimeException(__('database-task::tasks.errors.output_batch_order_mismatch'));
+            }
+
+            $databaseTask->saveOutput($output);
 
             Events\BatchableTaskRunFinished::dispatch($databaseTask, $this->batchOrder);
         } catch (\Throwable $e) {
@@ -45,18 +50,5 @@ class RunBatchableTask implements ShouldQueue
 
             Events\BatchableTaskRunFailed::dispatch($databaseTask, $this->batchOrder, $e);
         }
-    }
-
-    protected function saveBatchableOutput(Models\DatabaseTask $databaseTask, Contracts\OutputInterface $output): void
-    {
-        if (! $output instanceof Contracts\BatchableOutput) {
-            throw new \RuntimeException(__('database-task::tasks.errors.output_not_batchable'));
-        }
-
-        if ($output->getBatchOrder() !== $this->batchOrder) {
-            throw new \RuntimeException(__('database-task::tasks.errors.output_batch_order_mismatch'));
-        }
-
-        $databaseTask->saveOutput($output);
     }
 }

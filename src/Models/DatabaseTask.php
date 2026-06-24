@@ -145,9 +145,10 @@ class DatabaseTask extends Model
 
     public function saveOutput(Contracts\OutputInterface | Contracts\BatchableOutput $output): bool
     {
-        // TODO: Spatie Media file cleanup use command `deleted-output-media:clean`
         return $this->transactionCallback(
             function () use ($output): bool {
+                // TODO: Spatie Media file cleanup use command `deleted-output-media:clean`
+
                 $this->outputs()
                     ->where('batch_order', $output instanceof Contracts\BatchableOutput ? $output->getBatchOrder() : 0)
                     ->delete();
@@ -189,14 +190,12 @@ class DatabaseTask extends Model
      */
     protected function transactionCallback(\Closure $callback): bool
     {
+        $callback = fn() => throw_if(value($callback) === false, \RuntimeException::class, 'Callback returned false.');
+
         try {
-            $this->getConnection()->transaction(
-                fn() => throw_if(
-                    value($callback) === false,
-                    \RuntimeException::class,
-                    'Transaction callback returned false.'
-                )
-            );
+            $this->getConnection()->transactionLevel() > 0
+                ? $callback()
+                : $this->getConnection()->transaction($callback);
         } catch (\Throwable $e) {
             return false;
         }

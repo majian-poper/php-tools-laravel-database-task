@@ -134,10 +134,7 @@ class DatabaseTaskInput extends Model implements HasMedia
 
     public function task(): BelongsTo
     {
-        return $this->belongsTo(
-            DatabaseTaskFacade::resolveModelClass(DatabaseTask::class),
-            'database_task_id'
-        );
+        return $this->belongsTo(DatabaseTaskFacade::resolveModelClass(DatabaseTask::class), 'database_task_id');
     }
 
     // --- Helpers ---

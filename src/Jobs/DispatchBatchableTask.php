@@ -33,17 +33,30 @@ class DispatchBatchableTask implements ShouldQueue
         try {
             $task = $this->getBatchableTask();
 
-            [$batchInputValues, $jobs] = $this->parse(
-                $databaseTask,
-                $task->getBatchableInputs(...$databaseTask->getNonBatchableInputs())
-            );
+            $batchableInputs = collect($task->getBatchableInputs(...$databaseTask->getNonBatchableInputs()))
+                ->whereInstanceOf(Contracts\BatchableInput::class);
 
-            if (blank($jobs)) {
+            $batchableInputValues = $batchableInputs
+                ->map(
+                    static fn(Contracts\BatchableInput $input): array => DatabaseTaskFacade::fromInput($input, $databaseTask)
+                        ->getAttributes()
+                )
+                ->all();
+
+            $jobs = $batchableInputs
+                ->map(fn(Contracts\BatchableInput $batchInput): int => $batchInput->getBatchOrder())
+                ->unique()
+                ->map(
+                    static fn(int $batchOrder): RunBatchableTask => (new RunBatchableTask($databaseTask, $batchOrder))
+                        ->delay(now()->addSeconds($batchOrder))
+                );
+
+            if ($jobs->isEmpty()) {
                 throw new \RuntimeException(__('database-task::tasks.errors.no_data'));
             }
 
             $databaseTask->getConnection()->transaction(
-                fn() => $this->saveBatchableInputs($databaseTask, $batchInputValues)
+                fn() => $this->saveBatchableInputs($databaseTask, $batchableInputValues)
             );
 
             $this->batch()->add($jobs);
@@ -56,30 +69,11 @@ class DispatchBatchableTask implements ShouldQueue
         }
     }
 
-    protected function parse(Models\DatabaseTask $databaseTask, iterable $batchableInputs): array
-    {
-        $batchableInputValues = [];
-        $jobs = [];
-
-        foreach ($batchableInputs as $batchInput) {
-            if ($batchInput instanceof Contracts\BatchableInput) {
-                $batchableInputValues[] = DatabaseTaskFacade::resolveModel(Models\DatabaseTaskInput::class)
-                    ->fromInput($batchInput, $databaseTask)
-                    ->updateTimestamps()
-                    ->getAttributes();
-
-                $jobs[] = new RunBatchableTask($databaseTask, $batchInput->getBatchOrder());
-            }
-        }
-
-        return [$batchableInputValues, $jobs];
-    }
-
     protected function saveBatchableInputs(Models\DatabaseTask $databaseTask, array $batchableInputValues): void
     {
         $databaseTask->outputs()->where('batch_order', '>', 0)->delete();
         $databaseTask->inputs()->where('batch_order', '>', 0)->delete();
 
-        $databaseTask->inputs()->insert($batchableInputValues);
+        $databaseTask->inputs()->fillAndInsert($batchableInputValues);
     }
 }

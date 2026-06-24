@@ -4,7 +4,7 @@ namespace PHPTools\LaravelDatabaseTask\Jobs\Concerns;
 
 use Illuminate\Bus\Batchable;
 use PHPTools\LaravelDatabaseTask\Contracts;
-use PHPTools\LaravelDatabaseTask\Models\DatabaseTask;
+use PHPTools\LaravelDatabaseTask\Models;
 
 trait WithBatchableTask
 {
@@ -25,7 +25,7 @@ trait WithBatchableTask
         return $task;
     }
 
-    protected function markAsFailed(DatabaseTask $databaseTask, string $reason): void
+    protected function markAsFailed(Models\DatabaseTask $databaseTask, string $reason): void
     {
         $this->batch()->cancel();
 

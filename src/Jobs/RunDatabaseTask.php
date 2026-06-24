@@ -38,12 +38,13 @@ class RunDatabaseTask implements ShouldQueue
         try {
             $task = $this->getTask();
 
-            $databaseTask->getConnection()->transaction(
-                fn() => $this->saveOutput(
-                    $databaseTask,
-                    $task->run(...$databaseTask->getNonBatchableInputs())
-                )
-            );
+            $output = $task->run(...$databaseTask->getNonBatchableInputs());
+
+            if ($output instanceof Contracts\BatchableOutput && $output->getBatchOrder() !== 0) {
+                throw new \RuntimeException(__('database-task::tasks.errors.output_should_not_be_batchable'));
+            }
+
+            $databaseTask->moveToProcessedStatus($output);
 
             Events\TaskRunFinished::dispatch($databaseTask);
         } catch (\Throwable $e) {
@@ -51,14 +52,5 @@ class RunDatabaseTask implements ShouldQueue
 
             Events\TaskRunFailed::dispatch($databaseTask, $e);
         }
-    }
-
-    protected function saveOutput(Models\DatabaseTask $databaseTask, Contracts\OutputInterface $mergedOutput): void
-    {
-        if ($mergedOutput instanceof Contracts\BatchableOutput && $mergedOutput->getBatchOrder() !== 0) {
-            throw new \RuntimeException(__('database-task::tasks.errors.output_should_not_be_batchable'));
-        }
-
-        $databaseTask->moveToProcessedStatus($mergedOutput);
     }
 }
