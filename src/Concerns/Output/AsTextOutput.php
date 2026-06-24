@@ -5,11 +5,13 @@ namespace PHPTools\LaravelDatabaseTask\Concerns\Output;
 trait AsTextOutput
 {
     use HasExpires;
-    use HasValue;
+    use HasValue {
+        getValue as protected hasValueGetValue;
+    }
 
     public function getValue(): string
     {
-        $value = parent::getValue();
+        $value = $this->hasValueGetValue();
 
         if (\is_string($value)) {
             return $value;

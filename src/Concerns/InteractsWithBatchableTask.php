@@ -23,9 +23,9 @@ trait InteractsWithBatchableTask
 
     public function mergeBatchableOutputs(Contracts\BatchableOutput ...$outputs): Contracts\OutputInterface
     {
-        $filteredOutputs = collect($outputs)
-            ->whereInstanceOf(Contracts\BatchableOutput::class)
-            ->sortBy(static fn(Contracts\BatchableOutput $output): int => $output->getBatchOrder());
+        $filteredOutputs = collect($outputs)->sortBy(
+            static fn(Contracts\BatchableOutput $output): int => $output->getBatchOrder()
+        );
 
         return $this->handleMergeBatchableOutputs($filteredOutputs);
     }

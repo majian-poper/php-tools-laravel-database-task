@@ -5,11 +5,13 @@ namespace PHPTools\LaravelDatabaseTask\Concerns\Output;
 trait AsFileOutput
 {
     use HasExpires;
-    use HasValue;
+    use HasValue {
+        getValue as protected hasValueGetValue;
+    }
 
     public function getValue(): ?\SplFileObject
     {
-        $value = parent::getValue();
+        $value = $this->hasValueGetValue();
 
         if ($value instanceof \SplFileObject) {
             return $value;

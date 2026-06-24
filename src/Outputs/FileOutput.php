@@ -8,7 +8,7 @@ use PHPTools\LaravelDatabaseTask\Contracts;
 class FileOutput extends \SplFileObject implements Contracts\OutputInterface
 {
     use Concerns\Output\AsFileOutput {
-        getValue as baseGetValue;
+        getValue as protected baseGetValue;
     }
 
     protected bool $autoDelete = true;

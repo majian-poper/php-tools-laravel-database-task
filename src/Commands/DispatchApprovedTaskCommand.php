@@ -70,7 +70,7 @@ class DispatchApprovedTaskCommand extends Command
     {
         Bus::batch(new Jobs\DispatchBatchableTask($databaseTask))
             ->name($databaseTask->job_name)
-            ->then(static fn() => Jobs\MergeBatchableTask::dispatch($databaseTask))
+            ->then(static fn() => Jobs\MergeBatchableTask::dispatch($databaseTask)->delay(5))
             ->dispatch();
     }
 

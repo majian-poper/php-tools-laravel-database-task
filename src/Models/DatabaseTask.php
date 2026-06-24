@@ -14,6 +14,7 @@ use PHPTools\LaravelDatabaseTask\Contracts;
 use PHPTools\LaravelDatabaseTask\Enums;
 use PHPTools\LaravelDatabaseTask\Events;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
+use PHPTools\LaravelDatabaseTask\Outputs\NullOutput;
 use PHPTools\LaravelDatabaseTask\Outputs\TextOutput;
 
 /**
@@ -134,6 +135,7 @@ class DatabaseTask extends Model
     public function getBatchableOutputs(): array
     {
         return $this->outputs()
+            ->where('output_class', '!=', NullOutput::class)
             ->where('batch_order', '>', 0)
             ->orderBy('batch_order')
             ->get()

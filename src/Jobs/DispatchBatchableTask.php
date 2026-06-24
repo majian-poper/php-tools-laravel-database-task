@@ -4,6 +4,7 @@ namespace PHPTools\LaravelDatabaseTask\Jobs;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Collection;
 use PHPTools\LaravelDatabaseTask\Contracts;
 use PHPTools\LaravelDatabaseTask\Events;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
@@ -36,15 +37,12 @@ class DispatchBatchableTask implements ShouldQueue
             $batchableInputs = collect($task->getBatchableInputs(...$databaseTask->getNonBatchableInputs()))
                 ->whereInstanceOf(Contracts\BatchableInput::class);
 
-            $batchableInputValues = $batchableInputs
-                ->map(
-                    static fn(Contracts\BatchableInput $input): array => DatabaseTaskFacade::fromInput($input, $databaseTask)
-                        ->getAttributes()
-                )
-                ->all();
+            $batchableInputValues = $batchableInputs->map(
+                static fn(Contracts\BatchableInput $input): array => DatabaseTaskFacade::fromInput($input, $databaseTask)->getAttributes()
+            );
 
             $jobs = $batchableInputs
-                ->map(fn(Contracts\BatchableInput $batchInput): int => $batchInput->getBatchOrder())
+                ->map(static fn(Contracts\BatchableInput $batchInput): int => $batchInput->getBatchOrder())
                 ->unique()
                 ->map(static fn(int $batchOrder): RunBatchableTask => (new RunBatchableTask($databaseTask, $batchOrder)));
 
@@ -66,11 +64,13 @@ class DispatchBatchableTask implements ShouldQueue
         }
     }
 
-    protected function saveBatchableInputs(Models\DatabaseTask $databaseTask, array $batchableInputValues): void
+    protected function saveBatchableInputs(Models\DatabaseTask $databaseTask, Collection $batchableInputValues): void
     {
         $databaseTask->outputs()->where('batch_order', '>', 0)->delete();
         $databaseTask->inputs()->where('batch_order', '>', 0)->delete();
 
-        $databaseTask->inputs()->fillAndInsert($batchableInputValues);
+        $batchableInputValues->chunk(100)->each(
+            static fn(Collection $chunk) => $databaseTask->inputs()->insert($chunk->all())
+        );
     }
 }
