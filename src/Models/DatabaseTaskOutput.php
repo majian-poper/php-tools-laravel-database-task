@@ -102,15 +102,22 @@ class DatabaseTaskOutput extends Model implements HasMedia
 
         // TODO try-catch
 
-        $isFile = $this->is_file && \is_a($this->output_class, FileOutput::class, true) && $this->file;
-        $parameters = $isFile ? ['filename' => \tempnam(\sys_get_temp_dir(), 'database-task-output-')] : [];
+        $isFile = \is_a($this->output_class, FileOutput::class, true) && $this->is_file && $this->file;
 
-        $output = app($this->output_class, $parameters);
+        if ($isFile) {
+            $filename = \sys_get_temp_dir() . \DIRECTORY_SEPARATOR . $this->file->file_name;
+
+            \touch($filename);
+
+            $parameters = ['filename' => $filename, 'mode' => 'w+'];
+        }
+
+        $output = app($this->output_class, $parameters ?? []);
 
         if (\method_exists($output, 'value')) {
             $output->value(
                 match (true) {
-                    $isFile => $this->file->toTempFileObject(...),
+                    $isFile => fn() => $this->file->writeTo($output),
                     \is_a($output, TextOutput::class) => $this->output_value,
                     default => null,
                 }

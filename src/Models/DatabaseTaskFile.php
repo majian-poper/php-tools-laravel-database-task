@@ -8,18 +8,25 @@ class DatabaseTaskFile extends Media
 {
     public function toTempFileObject(): \SplTempFileObject
     {
-        $tempFile = new \SplTempFileObject;
+        return $this->writeTo(new \SplTempFileObject);
+    }
+
+    public function writeTo(\SplFileObject $file): \SplFileObject
+    {
+        if (! $file->isWritable()) {
+            throw new \RuntimeException('The provided file is not writable.');
+        }
 
         $resource = $this->stream();
 
         while (! \feof($resource)) {
-            $tempFile->fwrite(\fread($resource, 8192));
+            $file->fwrite(\fread($resource, 8192));
         }
 
         \fclose($resource);
 
-        $tempFile->rewind();
+        $file->rewind();
 
-        return $tempFile;
+        return $file;
     }
 }
