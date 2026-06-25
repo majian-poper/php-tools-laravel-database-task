@@ -5,6 +5,7 @@ namespace PHPTools\LaravelDatabaseTask\Models;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Arr;
 use PHPTools\LaravelDatabaseTask\Contracts;
 use PHPTools\LaravelDatabaseTask\Enums;
 use PHPTools\LaravelDatabaseTask\Facades\DatabaseTaskFacade;
@@ -46,18 +47,29 @@ class DatabaseTaskInput extends Model implements HasMedia
 
     public static function fromArray(array $data, int $batchOrder = 0, ?DatabaseTask $databaseTask = null): ?static
     {
-        if (! isset($data['input_class'], $data['input_value'])) {
+        if (! Arr::has($data, ['input_class', 'input_value', 'is_file', 'is_excluded'])) {
             return null;
         }
 
         $inputClass = $data['input_class'];
-        $inputValue = $data['input_value'];
 
-        if (blank($inputValue)) {
+        if (! \class_exists($inputClass) || ! \is_subclass_of($inputClass, Contracts\InputInterface::class)) {
             return null;
         }
 
-        if (! \class_exists($inputClass) || ! \is_subclass_of($inputClass, Contracts\InputInterface::class)) {
+        /*
+        * input_value 可能是以下类型：
+        * AsQuery         => string                   e.g. "SELECT * FROM users"
+        * AsNumber        => float                    e.g. 123.0
+        *  |- multiple    => int string with comma    e.g. "1,2,3"
+        * AsBoolean       => bool                     e.g. true | false
+        * AsSelect        => array<string | int>      e.g. ["abc", "def"] | [1, 2, 3]
+        * AsDateTime      => string                   e.g. "2023-01-01 00:00:00" | "2023-01-01"
+        * AsFile          => \SplFileObject.          TODO: 支持 file 格式
+        */
+        $inputValue = $data['input_value'];
+
+        if (blank($inputValue)) {
             return null;
         }
 
@@ -65,7 +77,7 @@ class DatabaseTaskInput extends Model implements HasMedia
             [
                 'input_class' => $inputClass,
                 'input_value' => DatabaseTaskFacade::valueToString($inputValue),
-                'is_file' => false, // TODO: 支持 file 格式
+                'is_file' => false,
                 'is_excluded' => \boolval($data['is_excluded'] ?? false),
                 'batch_order' => $batchOrder,
             ]
@@ -84,7 +96,7 @@ class DatabaseTaskInput extends Model implements HasMedia
             [
                 'input_class' => \get_class($input),
                 'input_value' => DatabaseTaskFacade::valueToString($input->getValue()),
-                'is_file' => false, // TODO: 支持 file 格式
+                'is_file' => false,
                 'is_excluded' => $input->isExcluded(),
                 'batch_order' => $input instanceof Contracts\BatchableInput ? $input->getBatchOrder() : 0,
             ]
@@ -107,8 +119,6 @@ class DatabaseTaskInput extends Model implements HasMedia
 
         // TODO try-catch
 
-        $isFile = $this->is_file && $this->file;
-
         /** @var Contracts\InputInterface $input */
         $input = app($this->input_class);
 
@@ -116,17 +126,12 @@ class DatabaseTaskInput extends Model implements HasMedia
             $input->excluded($this->is_excluded);
         }
 
-        if ($isFile && \method_exists($input, 'asFile')) {
+        if ($this->is_file && $this->file && \method_exists($input, 'asFile')) {
             $input->asFile();
         }
 
         if (\method_exists($input, 'value')) {
-            $input->value(
-                match (true) {
-                    $isFile => $this->file->toTempFileObject(...),
-                    default => $this->stringToValue($this->input_value, $input->getType()),
-                }
-            );
+            $input->value($this->stringToValue($this->input_value, $input->getType()));
         }
 
         if ($input instanceof Contracts\BatchableInput && \method_exists($input, 'batchOrder')) {
@@ -150,13 +155,24 @@ class DatabaseTaskInput extends Model implements HasMedia
      */
     protected function stringToValue(string $string, Enums\InputType $type): mixed
     {
+        if ($type === Enums\InputType::NUMBER) {
+            if (\is_numeric($string)) {
+                return (int) $string;
+            }
+
+            if (\str_contains($string, ',')) {
+                return \explode(',', $string);
+            }
+
+            return null;
+        }
+
         return match ($type) {
             Enums\InputType::QUERY => $string ?: null,
-            Enums\InputType::NUMBER => \is_numeric($string) ? (int) $string : null,
             Enums\InputType::SELECT => \explode(',', $string),
             Enums\InputType::DATETIME => CarbonImmutable::parse($string),
             Enums\InputType::BOOLEAN => \in_array($string, ['1', 'true', 'yes'], true),
-            default => throw new \InvalidArgumentException('Unsupported input type.'),
+            Enums\InputType::FILE => fn() => $this->file->toTempFileObject(),
         };
     }
 }

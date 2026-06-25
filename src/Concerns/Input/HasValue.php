@@ -11,12 +11,12 @@ trait HasValue
     protected mixed $value;
 
     /**
-     * asBoolean => bool
-     * asNumber => int / iterable<int> / \SplFileObject
-     * asQuery => string
-     * asDatetime => \DateTimeInterface
-     * asFile => \SplFileObject
-     * asSelect => iterable<int | string>
+     * asBoolean     => bool
+     * asNumber      => int / iterable<int> / \SplFileObject
+     * asQuery       => string
+     * asDatetime    => \DateTimeInterface
+     * asFile        => \SplFileObject
+     * asSelect      => iterable<int | string>
      *
      * @return null | bool | int | string | \DateTimeInterface | \SplFileObject | iterable
      */
