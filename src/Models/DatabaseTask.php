@@ -62,6 +62,9 @@ class DatabaseTask extends Model
 
     // --- DatabaseTask ---
 
+    /**
+     * @return Contracts\TaskInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithTask | null
+     */
     public function toTask(): ?Contracts\TaskInterface
     {
         if (isset($this->taskInstance)) {

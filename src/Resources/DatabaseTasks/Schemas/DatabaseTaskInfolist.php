@@ -44,7 +44,7 @@ class DatabaseTaskInfolist
             Infolists\Components\RepeatableEntry::make('normal_outputs')
                 ->label(__('database-task::model.database_task.outputs'))
                 ->schema(static::outputSectionSchema())
-                ->visible(static fn(DatabaseTask $record): bool => $record->normal_outputs->isNotEmpty()),
+                ->visible(static fn(DatabaseTask $record): bool => $record->toTask()?->showOutputs() && $record->normal_outputs->isNotEmpty()),
         ];
     }
 
@@ -112,6 +112,7 @@ class DatabaseTaskInfolist
                 ->label(static fn(DatabaseTaskInput $record): string => $record->toInput()->getLabel())
                 ->formatStateUsing(
                     static function (DatabaseTaskInput $record, $state): string {
+                        /** @var \PHPTools\LaravelDatabaseTask\Contracts\InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput $input */
                         $input = $record->toInput();
 
                         return match ($input->getType()) {

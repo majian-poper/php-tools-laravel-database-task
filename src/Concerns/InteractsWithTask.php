@@ -38,6 +38,11 @@ trait InteractsWithTask
         return $this->handleRun($filteredInputs);
     }
 
+    public function showOutputs(): bool
+    {
+        return true;
+    }
+
     protected function filterInputs(Contracts\InputInterface ...$inputs): Collection
     {
         $supportInputs = collect(static::getSupportInputs())->keyBy->getName();
