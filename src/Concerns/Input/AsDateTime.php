@@ -5,7 +5,7 @@ namespace PHPTools\LaravelDatabaseTask\Concerns\Input;
 use Illuminate\Support\Traits\Conditionable;
 use PHPTools\LaravelDatabaseTask\Enums\InputType;
 
-trait AsDatetime
+trait AsDateTime
 {
     use Conditionable;
     use HasNaming;
@@ -19,7 +19,7 @@ trait AsDatetime
 
     protected bool | \Closure $hasTime = false;
 
-    public function asDatetime(bool | \Closure $hasTime = true): static
+    public function asDateTime(bool | \Closure $hasTime = true): static
     {
         $this->hasTime = $hasTime;
 

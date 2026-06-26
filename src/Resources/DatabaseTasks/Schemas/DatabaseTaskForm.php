@@ -64,7 +64,7 @@ class DatabaseTaskForm
     }
 
     /**
-     * @param InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput $input
+     * @param InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\Input\HasNaming $input
      */
     protected static function makeFieldsetFor(InputInterface $input): Schemas\Components\Fieldset
     {
@@ -120,7 +120,7 @@ class DatabaseTaskForm
     }
 
     /**
-     * @param InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput $input
+     * @param InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\Input\AsNumber $input
      */
     protected static function makeNumberField(InputInterface $input): Forms\Components\Field
     {
@@ -130,7 +130,7 @@ class DatabaseTaskForm
     }
 
     /**
-     * @param InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput $input
+     * @param InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\Input\AsSelect $input
      */
     protected static function makeSelectField(InputInterface $input): Forms\Components\Field
     {
@@ -141,7 +141,7 @@ class DatabaseTaskForm
     }
 
     /**
-     * @param InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput $input
+     * @param InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\Input\AsDateTime $input
      */
     protected static function makeDatetimeField(InputInterface $input): Forms\Components\Field
     {
@@ -153,7 +153,7 @@ class DatabaseTaskForm
 
     /**
      * TODO: 支持文件上传字段
-     * @param InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\InteractsWithInput $input
+     * @param InputInterface | \PHPTools\LaravelDatabaseTask\Concerns\Input\AsFile $input
      */
     protected static function makeIsFileField(InputInterface $input): Forms\Components\Field
     {

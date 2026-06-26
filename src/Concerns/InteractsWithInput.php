@@ -17,7 +17,7 @@ namespace PHPTools\LaravelDatabaseTask\Concerns;
 trait InteractsWithInput
 {
     use Input\AsBoolean;
-    use Input\AsDatetime;
+    use Input\AsDateTime;
     use Input\AsFile;
     use Input\AsNumber;
     use Input\AsQuery;
