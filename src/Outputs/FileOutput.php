@@ -7,6 +7,7 @@ use PHPTools\LaravelDatabaseTask\Contracts;
 
 class FileOutput extends \SplFileObject implements Contracts\OutputInterface
 {
+    use Concerns\InteractsWithStream;
     use Concerns\Output\AsFileOutput {
         getValue as protected baseGetValue;
     }
@@ -22,17 +23,9 @@ class FileOutput extends \SplFileObject implements Contracts\OutputInterface
 
     public function getValue(): ?\SplFileObject
     {
-        $value = $this->baseGetValue();
+        $this->writeStream($this);
 
-        if ($value instanceof \SplFileObject) {
-            return $value;
-        }
-
-        if ($this->isReadable()) {
-            return $this;
-        }
-
-        return null;
+        return $this->baseGetValue() ?? $this;
     }
 
     public function autoClean(bool $autoClean = true): static
