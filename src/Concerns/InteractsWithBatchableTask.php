@@ -16,18 +16,16 @@ trait InteractsWithBatchableTask
 
     public function getBatchableInputs(Contracts\InputInterface ...$inputs): iterable
     {
-        $filteredInputs = $this->filterInputs(...$inputs);
-
-        return $this->handleGetBatchableInputs($filteredInputs);
+        return $this->handleGetBatchableInputs($this->filterInputs(...$inputs));
     }
 
-    public function mergeBatchableOutputs(Contracts\BatchableOutput ...$outputs): Contracts\OutputInterface
+    public function mergeBatchableOutputs(Contracts\BatchableOutput ...$batchableOutputs): Contracts\OutputInterface
     {
-        $filteredOutputs = collect($outputs)->sortBy(
+        $sortedBatchableOutputs = collect($batchableOutputs)->sortBy(
             static fn(Contracts\BatchableOutput $output): int => $output->getBatchOrder()
         );
 
-        return $this->handleMergeBatchableOutputs($filteredOutputs);
+        return $this->handleMergeBatchableOutputs($sortedBatchableOutputs);
     }
 
     protected function filterInputs(Contracts\InputInterface ...$inputs): Collection
@@ -40,16 +38,13 @@ trait InteractsWithBatchableTask
 
         $inputs = collect($inputs)
             ->groupBy->getName()
-            ->map(static fn(Collection $inputs): Contracts\InputInterface => $inputs->sortByDesc($getBatchorder)->first());
+            ->map(
+                static function (Collection $inputs) use ($getBatchorder): Contracts\InputInterface {
+                    return $inputs->sortByDesc($getBatchorder)->first();
+                }
+            );
 
-        $filteredInputs = collect();
-
-        /** @var Contracts\InputInterface $input */
-        foreach ($supportInputs as $name => $_) {
-            $filteredInputs[$name] = $inputs->pull($name);
-        }
-
-        return $filteredInputs;
+        return $this->filterAndFillInputs($supportInputs, $inputs);
     }
 
     abstract protected function handleGetBatchableInputs(Collection $filteredInputs): iterable;

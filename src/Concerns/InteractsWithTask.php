@@ -2,11 +2,9 @@
 
 namespace PHPTools\LaravelDatabaseTask\Concerns;
 
-use Filament\Support\Concerns\EvaluatesClosures;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Illuminate\Support\Traits\Conditionable;
 use PHPTools\LaravelDatabaseTask\Contracts;
 
 /**
@@ -14,8 +12,14 @@ use PHPTools\LaravelDatabaseTask\Contracts;
  */
 trait InteractsWithTask
 {
-    use Conditionable;
-    use EvaluatesClosures;
+    /** @var Collection<string, Contracts\InputInterface> */
+    protected Collection $filteredInputs;
+
+    /** @var Collection<string, Contracts\InputInterface> */
+    protected Collection $namedInputInjections;
+
+    /** @var Collection<string, Contracts\InputInterface> */
+    protected Collection $typedInputInjections;
 
     public function getTitle(): string
     {
@@ -26,16 +30,12 @@ trait InteractsWithTask
 
     public function preview(Contracts\InputInterface ...$inputs): Htmlable
     {
-        $filteredInputs = $this->filterInputs(...$inputs);
-
-        return $this->handlePreview($filteredInputs);
+        return $this->handlePreview($this->filterInputs(...$inputs));
     }
 
     public function run(Contracts\InputInterface ...$inputs): Contracts\OutputInterface
     {
-        $filteredInputs = $this->filterInputs(...$inputs);
-
-        return $this->handleRun($filteredInputs);
+        return $this->handleRun($this->filterInputs(...$inputs));
     }
 
     public function showOutputs(): bool
@@ -45,17 +45,40 @@ trait InteractsWithTask
 
     protected function filterInputs(Contracts\InputInterface ...$inputs): Collection
     {
-        $supportInputs = collect(static::getSupportInputs())->keyBy->getName();
+        return $this->filterAndFillInputs(
+            collect(static::getSupportInputs())->keyBy->getName(),
+            collect($inputs)->keyBy->getName()
+        );
+    }
 
-        $inputs = collect($inputs)->keyBy->getName();
-
-        $filteredInputs = collect();
+    protected function filterAndFillInputs(Collection $supportInputs, Collection $inputs): Collection
+    {
+        $this->filteredInputs = collect();
+        $this->namedInputInjections = collect();
+        $this->typedInputInjections = collect();
 
         foreach ($supportInputs as $name => $_) {
-            $filteredInputs[$name] = $inputs->pull($name);
+            $input = $inputs->pull($name);
+
+            $this->filteredInputs[$name] = $input;
+
+            $this->namedInputInjections[Str::snake($name)] = $input;
+            $this->namedInputInjections[Str::studly($name)] = $input;
+
+            $this->typedInputInjections[\get_class($_)] = $input;
         }
 
-        return $filteredInputs;
+        return $this->filteredInputs;
+    }
+
+    protected function namedInputInjections(): array
+    {
+        return $this->namedInputInjections->all();
+    }
+
+    protected function typedInputInjections(): array
+    {
+        return $this->typedInputInjections->all();
     }
 
     abstract protected function handlePreview(Collection $inputs): Htmlable;
